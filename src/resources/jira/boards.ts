@@ -9,8 +9,60 @@ import { boardListSchema, boardSchema, issuesListSchema } from '../../schemas/ji
 import { getBoards, getBoardById, getBoardIssues } from '../../utils/jira-resource-api.js';
 import { Logger } from '../../utils/logger.js';
 import { Config, Resources } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 const logger = Logger.getLogger('JiraBoardResources');
+
+/**
+ * Get authentication headers based on deployment type
+ */
+function getAuthHeaders(config: any): Record<string, string> {
+  const deploymentType = getDeploymentType(config.baseUrl);
+  
+  // Check if we have a PAT token for Server/DC
+  const patToken = config.patToken;
+  if (deploymentType === 'server' && patToken) {
+    return {
+      'Authorization': `Bearer ${patToken}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'User-Agent': 'MCP-Atlassian-Server/1.0.0'
+    };
+  } else {
+    // Use Basic Auth
+    const auth = Buffer.from(`${config.email}:${config.apiToken}`).toString('base64');
+    return {
+      'Authorization': `Basic ${auth}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'User-Agent': 'MCP-Atlassian-Server/1.0.0'
+    };
+  }
+}
+
+/**
+ * Format board data to include deployment type
+ */
+function formatBoardData(board: any, baseUrl: string): any {
+  const deploymentType = getDeploymentType(baseUrl);
+  
+  return {
+    ...board,
+    deploymentType: deploymentType
+  };
+}
+
+/**
+ * Format board list data to include deployment type
+ */
+function formatBoardListData(boards: any[], baseUrl: string): any[] {
+  const deploymentType = getDeploymentType(baseUrl);
+  
+  return boards.map(board => ({
+    ...board,
+    deploymentType: deploymentType
+  }));
+}
 
 /**
  * Register all Jira board resources with MCP Server
@@ -45,7 +97,7 @@ export function registerBoardResources(server: McpServer) {
         const uriString = typeof uri === 'string' ? uri : uri.href;
         return Resources.createStandardResource(
           uriString,
-          response.values,
+          formatBoardListData(response.values, config.baseUrl),
           'boards',
           boardListSchema,
           response.total || response.values.length,
@@ -84,7 +136,7 @@ export function registerBoardResources(server: McpServer) {
         const uriString = typeof uri === 'string' ? uri : uri.href;
         return Resources.createStandardResource(
           uriString,
-          [board],
+          [formatBoardData(board, config.baseUrl)],
           'board',
           boardSchema,
           1,
@@ -159,13 +211,10 @@ export function registerBoardResources(server: McpServer) {
         const config = Config.getAtlassianConfigFromEnv();
         const boardId = Array.isArray(params.boardId) ? params.boardId[0] : params.boardId;
         // Gọi API lấy cấu hình board
+        const headers = getAuthHeaders(config);
         const response = await fetch(`${config.baseUrl}/rest/agile/1.0/board/${boardId}/configuration`, {
           method: 'GET',
-          headers: {
-            'Authorization': `Basic ${Buffer.from(`${config.email}:${config.apiToken}`).toString('base64')}`,
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
+          headers,
         });
         if (!response.ok) throw new Error(`Jira API error: ${response.status} ${await response.text()}`);
         const configData = await response.json();

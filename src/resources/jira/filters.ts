@@ -10,8 +10,33 @@ import { createStandardMetadata } from '../../schemas/common.js';
 import { getFilters, getFilterById, getMyFilters } from '../../utils/jira-resource-api.js';
 import { Logger } from '../../utils/logger.js';
 import { Config, Resources } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 const logger = Logger.getLogger('JiraFilterResources');
+
+/**
+ * Format filter data to include deployment type
+ */
+function formatFilterData(filter: any, baseUrl: string): any {
+  const deploymentType = getDeploymentType(baseUrl);
+  
+  return {
+    ...filter,
+    deploymentType: deploymentType
+  };
+}
+
+/**
+ * Format filter list data to include deployment type
+ */
+function formatFilterListData(filters: any[], baseUrl: string): any[] {
+  const deploymentType = getDeploymentType(baseUrl);
+  
+  return filters.map(filter => ({
+    ...filter,
+    deploymentType: deploymentType
+  }));
+}
 
 /**
  * Register all Jira filter resources with MCP Server
@@ -73,12 +98,16 @@ export function registerFilterResources(server: McpServer) {
         
         const { limit, offset } = Resources.extractPagingParams(params);
         const response = await getFilters(config, offset, limit);
+        const formattedResponse = {
+          ...response,
+          values: formatFilterListData(response.values, config.baseUrl)
+        };
         return Resources.createStandardResource(
           typeof uri === 'string' ? uri : uri.href,
-          response.values,
+          formattedResponse.values,
           'filters',
           filterListSchema,
-          response.total || response.values.length,
+          formattedResponse.total || formattedResponse.values.length,
           limit,
           offset,
           `${config.baseUrl}/secure/ManageFilters.jspa`
@@ -98,9 +127,10 @@ export function registerFilterResources(server: McpServer) {
         
         const filterId = Array.isArray(params.filterId) ? params.filterId[0] : params.filterId;
         const filter = await getFilterById(config, filterId);
+        const formattedFilter = formatFilterData(filter, config.baseUrl);
         return Resources.createStandardResource(
           typeof uri === 'string' ? uri : uri.href,
-          [filter],
+          [formattedFilter],
           'filter',
           filterSchema,
           1,
@@ -122,13 +152,14 @@ export function registerFilterResources(server: McpServer) {
         const config = Config.getAtlassianConfigFromEnv();
         
         const filters = await getMyFilters(config);
+        const formattedFilters = formatFilterListData(filters, config.baseUrl);
         return Resources.createStandardResource(
           typeof uri === 'string' ? uri : uri.href,
-          filters,
+          formattedFilters,
           'filters',
           filterListSchema,
-          filters.length,
-          filters.length,
+          formattedFilters.length,
+          formattedFilters.length,
           0,
           `${config.baseUrl}/secure/ManageFilters.jspa?filterView=my`
         );

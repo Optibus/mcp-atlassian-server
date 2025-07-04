@@ -9,8 +9,33 @@ import { sprintListSchema, sprintSchema, issuesListSchema } from '../../schemas/
 import { getSprintsByBoard, getSprintById, getSprintIssues } from '../../utils/jira-resource-api.js';
 import { Logger } from '../../utils/logger.js';
 import { Config, Resources } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 const logger = Logger.getLogger('JiraSprintResources');
+
+/**
+ * Format sprint data to include deployment type
+ */
+function formatSprintData(sprint: any, baseUrl: string): any {
+  const deploymentType = getDeploymentType(baseUrl);
+  
+  return {
+    ...sprint,
+    deploymentType: deploymentType
+  };
+}
+
+/**
+ * Format sprint list data to include deployment type
+ */
+function formatSprintListData(sprints: any[], baseUrl: string): any[] {
+  const deploymentType = getDeploymentType(baseUrl);
+  
+  return sprints.map(sprint => ({
+    ...sprint,
+    deploymentType: deploymentType
+  }));
+}
 
 /**
  * Register all Jira sprint resources with MCP Server
@@ -44,7 +69,7 @@ export function registerSprintResources(server: McpServer) {
         const uriString = typeof uri === 'string' ? uri : uri.href;
         return Resources.createStandardResource(
           uriString,
-          response.values,
+          formatSprintListData(response.values, config.baseUrl),
           'sprints',
           sprintListSchema,
           response.total || response.values.length,
@@ -83,7 +108,7 @@ export function registerSprintResources(server: McpServer) {
         const uriString = typeof uri === 'string' ? uri : uri.href;
         return Resources.createStandardResource(
           uriString,
-          [sprint],
+          [formatSprintData(sprint, config.baseUrl)],
           'sprint',
           sprintSchema,
           1,

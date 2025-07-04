@@ -1,10 +1,52 @@
+/**
+ * Confluence Space Resources
+ * 
+ * These resources provide access to Confluence spaces through MCP.
+ */
+
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Logger } from '../../utils/logger.js';
 import { getConfluenceSpacesV2, getConfluenceSpaceV2, getConfluencePagesWithFilters } from '../../utils/confluence-resource-api.js';
 import { spacesListSchema, spaceSchema, pagesListSchema } from '../../schemas/confluence.js';
 import { Config, Resources } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
+import { normalizeUserData } from '../../utils/user-id-helper.js';
 
-const logger = Logger.getLogger('ConfluenceResource:Spaces');
+const logger = Logger.getLogger('ConfluenceSpaceResources');
+
+/**
+ * Format space data to include deployment type and normalize user data
+ */
+function formatSpaceData(space: any, baseUrl: string): any {
+  const deploymentType = getDeploymentType(baseUrl);
+  
+  // Normalize author/creator data if present
+  const formattedSpace = {
+    ...space,
+    deploymentType: deploymentType
+  };
+  
+  // Normalize author data if present
+  if (space.authorUserId || space.author) {
+    const authorData = normalizeUserData(space.author || { accountId: space.authorUserId }, deploymentType);
+    if (authorData) {
+      formattedSpace.author = {
+        id: authorData.id,
+        displayName: authorData.displayName,
+        accountId: authorData.original.accountId || authorData.id // Backward compatibility
+      };
+    }
+  }
+  
+  return formattedSpace;
+}
+
+/**
+ * Format space list data to include deployment type
+ */
+function formatSpaceListData(spaces: any[], baseUrl: string): any[] {
+  return spaces.map(space => formatSpaceData(space, baseUrl));
+}
 
 /**
  * Register Confluence space-related resources
@@ -36,6 +78,7 @@ export function registerSpaceResources(server: McpServer) {
       const cursor = params?.cursor ? (Array.isArray(params.cursor) ? params.cursor[0] : params.cursor) : undefined;
       logger.info(`Getting Confluence spaces list (v2): cursor=${cursor}, limit=${limit}`);
       const data = await getConfluenceSpacesV2(config, cursor, limit);
+      const formattedSpaces = formatSpaceListData(data.results, config.baseUrl);
       const uriString = typeof uri === 'string' ? uri : uri.href;
       // Chuẩn hóa metadata cho cursor-based
       const total = data.size ?? (data.results?.length || 0);
@@ -53,7 +96,7 @@ export function registerSpaceResources(server: McpServer) {
       // Chuẩn hóa trả về
       return Resources.createStandardResource(
         uriString,
-        data.results,
+        formattedSpaces,
         'spaces',
         spacesListSchema,
         total,
@@ -87,10 +130,11 @@ export function registerSpaceResources(server: McpServer) {
       logger.info(`Getting details for Confluence space (v2) by id: ${normalizedSpaceId}`);
       // Lấy thông tin space qua API helper (giả sử getConfluenceSpaceV2 hỗ trợ lookup theo id)
       const space = await getConfluenceSpaceV2(config, normalizedSpaceId);
+      const formattedSpace = formatSpaceData(space, config.baseUrl);
       const uriString = typeof uri === 'string' ? uri : uri.href;
       return Resources.createStandardResource(
         uriString,
-        [space],
+        [formattedSpace],
         'space',
         spaceSchema,
         1,

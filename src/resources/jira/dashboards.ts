@@ -1,10 +1,41 @@
+/**
+ * Jira Dashboard Resources
+ * 
+ * These resources provide access to Jira dashboards through MCP.
+ */
+
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { getDashboards, getMyDashboards, getDashboardById, getDashboardGadgets } from '../../utils/jira-resource-api.js';
 import { Logger } from '../../utils/logger.js';
 import { dashboardSchema, dashboardListSchema, gadgetListSchema } from '../../schemas/jira.js';
 import { Config, Resources } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 const logger = Logger.getLogger('JiraDashboardResources');
+
+/**
+ * Format dashboard data to include deployment type
+ */
+function formatDashboardData(dashboard: any, baseUrl: string): any {
+  const deploymentType = getDeploymentType(baseUrl);
+  
+  return {
+    ...dashboard,
+    deploymentType: deploymentType
+  };
+}
+
+/**
+ * Format dashboard list data to include deployment type
+ */
+function formatDashboardListData(dashboards: any[], baseUrl: string): any[] {
+  const deploymentType = getDeploymentType(baseUrl);
+  
+  return dashboards.map(dashboard => ({
+    ...dashboard,
+    deploymentType: deploymentType
+  }));
+}
 
 // (Có thể bổ sung schema dashboardSchema, gadgetsSchema nếu cần)
 
@@ -36,9 +67,10 @@ export function registerDashboardResources(server: McpServer) {
         
         const { limit, offset } = Resources.extractPagingParams(params);
         const data = await getDashboards(config, offset, limit);
+        const formattedData = formatDashboardListData(data.dashboards || [], config.baseUrl);
         return Resources.createStandardResource(
           uriStr,
-          data.dashboards || [],
+          formattedData,
           'dashboards',
           dashboardListSchema,
           data.total || (data.dashboards ? data.dashboards.length : 0),
@@ -76,9 +108,10 @@ export function registerDashboardResources(server: McpServer) {
         
         const { limit, offset } = Resources.extractPagingParams(params);
         const data = await getMyDashboards(config, offset, limit);
+        const formattedData = formatDashboardListData(data.dashboards || [], config.baseUrl);
         return Resources.createStandardResource(
           uriStr,
-          data.dashboards || [],
+          formattedData,
           'dashboards',
           dashboardListSchema,
           data.total || (data.dashboards ? data.dashboards.length : 0),
@@ -116,9 +149,10 @@ export function registerDashboardResources(server: McpServer) {
         
         const dashboardId = params.dashboardId || (uriStr.split('/').pop());
         const dashboard = await getDashboardById(config, dashboardId);
+        const formattedDashboard = formatDashboardData(dashboard, config.baseUrl);
         return Resources.createStandardResource(
           uriStr,
-          [dashboard],
+          [formattedDashboard],
           'dashboard',
           dashboardSchema,
           1,
@@ -156,9 +190,10 @@ export function registerDashboardResources(server: McpServer) {
         
         const dashboardId = params.dashboardId || (uriStr.split('/')[uriStr.split('/').length - 2]);
         const gadgets = await getDashboardGadgets(config, dashboardId);
+        const formattedGadgets = formatDashboardListData(gadgets, config.baseUrl);
         return Resources.createStandardResource(
           uriStr,
-          gadgets,
+          formattedGadgets,
           'gadgets',
           gadgetListSchema,
           gadgets.length,
