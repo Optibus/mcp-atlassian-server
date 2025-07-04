@@ -4,8 +4,57 @@ import { pagesListSchema, pageSchema, commentsListSchema, attachmentListSchema, 
 import { getConfluencePagesV2, getConfluencePageV2, getConfluencePageBodyV2, getConfluencePageAncestorsV2, getConfluencePageChildrenV2, getConfluencePageLabelsV2, getConfluencePageAttachmentsV2, getConfluencePageVersionsV2, getConfluencePagesWithFilters } from '../../utils/confluence-resource-api.js';
 import { getConfluencePageFooterCommentsV2, getConfluencePageInlineCommentsV2 } from '../../utils/confluence-resource-api.js';
 import { Config, Resources } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
+import { normalizeUserData } from '../../utils/user-id-helper.js';
 
 const logger = Logger.getLogger('ConfluenceResource:Pages');
+
+/**
+ * Format Confluence page data to include deployment type and normalize user data
+ */
+function formatPageData(page: any, baseUrl: string): any {
+  const deploymentType = getDeploymentType(baseUrl);
+  
+  // Normalize user data for page author and creator
+  const createdBy = page.createdBy ? normalizeUserData(page.createdBy, deploymentType) : null;
+  const lastModified = page.lastModified ? normalizeUserData(page.lastModified, deploymentType) : null;
+  
+  return {
+    ...page,
+    createdBy: createdBy ? {
+      id: createdBy.id,
+      displayName: createdBy.displayName,
+      accountId: createdBy.original.accountId || createdBy.id, // Backward compatibility
+      emailAddress: createdBy.emailAddress
+    } : page.createdBy,
+    lastModified: lastModified ? {
+      id: lastModified.id,
+      displayName: lastModified.displayName,
+      accountId: lastModified.original.accountId || lastModified.id, // Backward compatibility
+      emailAddress: lastModified.emailAddress
+    } : page.lastModified,
+    deploymentType: deploymentType
+  };
+}
+
+/**
+ * Format Confluence comment data to include deployment type and normalize user data
+ */
+function formatCommentData(comment: any, deploymentType: 'cloud' | 'server'): any {
+  // Normalize user data for comment author
+  const createdBy = comment.createdBy ? normalizeUserData(comment.createdBy, deploymentType) : null;
+  
+  return {
+    ...comment,
+    createdBy: createdBy ? {
+      id: createdBy.id,
+      displayName: createdBy.displayName,
+      accountId: createdBy.original.accountId || createdBy.id, // Backward compatibility
+      emailAddress: createdBy.emailAddress
+    } : comment.createdBy,
+    deploymentType: deploymentType
+  };
+}
 
 export function registerPageResources(server: McpServer) {
   logger.info('Registering Confluence page resources...');
@@ -43,7 +92,7 @@ export function registerPageResources(server: McpServer) {
           body = {};
         }
         const formattedPage = {
-          ...page,
+          ...formatPageData(page, config.baseUrl),
           body: (body && typeof body === 'object' && 'value' in body) ? body.value : '',
           bodyType: (body && typeof body === 'object' && 'representation' in body) ? body.representation : 'storage',
         };
@@ -143,13 +192,14 @@ export function registerPageResources(server: McpServer) {
         const footerComments = await getConfluencePageFooterCommentsV2(config, normalizedPageId);
         const inlineComments = await getConfluencePageInlineCommentsV2(config, normalizedPageId);
         const allComments = [...(footerComments.results || []), ...(inlineComments.results || [])];
+        const formattedComments = allComments.map((comment: any) => formatCommentData(comment, getDeploymentType(config.baseUrl)));
         return Resources.createStandardResource(
           typeof uri === 'string' ? uri : uri.href,
-          allComments,
+          formattedComments,
           'comments',
           commentsListSchema,
-          allComments.length,
-          allComments.length,
+          formattedComments.length,
+          formattedComments.length,
           0,
           `${config.baseUrl}/wiki/pages/${normalizedPageId}`
         );
@@ -187,13 +237,14 @@ export function registerPageResources(server: McpServer) {
         logger.info(`Getting ancestors for Confluence page (v2): ${normalizedPageId}`);
         const data = await getConfluencePageAncestorsV2(config, normalizedPageId);
         const ancestors = Array.isArray(data?.results) ? data.results : [];
+        const formattedAncestors = ancestors.map((ancestor: any) => formatPageData(ancestor, config.baseUrl));
         return Resources.createStandardResource(
           typeof uri === 'string' ? uri : uri.href,
-          ancestors,
+          formattedAncestors,
           'ancestors',
           { type: 'array', items: pageSchema },
-          ancestors.length,
-          ancestors.length,
+          formattedAncestors.length,
+          formattedAncestors.length,
           0,
           `${config.baseUrl}/wiki/pages/${normalizedPageId}`
         );
@@ -230,13 +281,19 @@ export function registerPageResources(server: McpServer) {
         }
         logger.info(`Getting attachments for Confluence page (v2): ${normalizedPageId}`);
         const data = await getConfluencePageAttachmentsV2(config, normalizedPageId);
+        const formattedAttachments = (data.results || []).map((attachment: any) => ({
+          id: attachment.id,
+          title: attachment.title,
+          url: attachment.url,
+          deploymentType: getDeploymentType(config.baseUrl)
+        }));
         return Resources.createStandardResource(
           typeof uri === 'string' ? uri : uri.href,
-          data.results || [],
+          formattedAttachments,
           'attachments',
           attachmentListSchema,
-          data.size || (data.results || []).length,
-          data.limit || (data.results || []).length,
+          formattedAttachments.length,
+          formattedAttachments.length,
           0,
           undefined
         );
@@ -273,13 +330,19 @@ export function registerPageResources(server: McpServer) {
         }
         logger.info(`Getting versions for Confluence page (v2): ${normalizedPageId}`);
         const data = await getConfluencePageVersionsV2(config, normalizedPageId);
+        const formattedVersions = (data.results || []).map((version: any) => ({
+          id: version.id,
+          title: version.title,
+          url: version.url,
+          deploymentType: getDeploymentType(config.baseUrl)
+        }));
         return Resources.createStandardResource(
           typeof uri === 'string' ? uri : uri.href,
-          data.results || [],
+          formattedVersions,
           'versions',
           versionListSchema,
-          data.size || (data.results || []).length,
-          data.limit || (data.results || []).length,
+          formattedVersions.length,
+          formattedVersions.length,
           0,
           undefined
         );
@@ -315,7 +378,8 @@ export function registerPageResources(server: McpServer) {
         id: page.id,
         title: page.title,
         status: page.status,
-        url: `${config.baseUrl}/wiki/pages/${page.id}`
+        url: `${config.baseUrl}/wiki/pages/${page.id}`,
+        deploymentType: getDeploymentType(config.baseUrl)
       }));
       const uriString = typeof uri === 'string' ? uri : uri.href;
       return Resources.createStandardResource(
@@ -360,7 +424,8 @@ export function registerPageResources(server: McpServer) {
         const formattedLabels = (data.results || []).map((label: any) => ({
           id: label.id,
           name: label.name,
-          prefix: label.prefix
+          prefix: label.prefix,
+          deploymentType: getDeploymentType(config.baseUrl)
         }));
         return Resources.createStandardResource(
           typeof uri === 'string' ? uri : uri.href,

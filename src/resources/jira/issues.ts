@@ -3,8 +3,59 @@ import { Logger } from '../../utils/logger.js';
 import { getIssue as getIssueApi, searchIssues as searchIssuesApi } from '../../utils/jira-resource-api.js';
 import { issueSchema, issuesListSchema, transitionsListSchema, commentsListSchema } from '../../schemas/jira.js';
 import { Config, Resources } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
+import { normalizeUserData } from '../../utils/user-id-helper.js';
 
 const logger = Logger.getLogger('JiraResource:Issues');
+
+/**
+ * Get authentication headers based on deployment type
+ */
+function getAuthHeaders(config: any): Record<string, string> {
+  const deploymentType = getDeploymentType(config.baseUrl);
+  
+  // Check if we have a PAT token for Server/DC
+  const patToken = (config as any).patToken;
+  if (deploymentType === 'server' && patToken) {
+    // Use PAT token for Server/DC if available
+    return {
+      'Authorization': `Bearer ${patToken}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'User-Agent': 'MCP-Atlassian-Server/1.0.0'
+    };
+  } else {
+    // Use Basic Auth (works for both Cloud and Server/DC)
+    const auth = Buffer.from(`${config.email}:${config.apiToken}`).toString('base64');
+    return {
+      'Authorization': `Basic ${auth}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'User-Agent': 'MCP-Atlassian-Server/1.0.0'
+    };
+  }
+}
+
+/**
+ * Get appropriate API endpoint based on deployment type
+ */
+function getApiEndpoint(baseUrl: string, endpoint: string): string {
+  const deploymentType = getDeploymentType(baseUrl);
+  
+  if (endpoint === 'issueTransitions') {
+    return deploymentType === 'cloud'
+      ? '/rest/api/3/issue/{issueKey}/transitions'
+      : '/rest/api/2/issue/{issueKey}/transitions';
+  }
+  
+  if (endpoint === 'issueComments') {
+    return deploymentType === 'cloud'
+      ? '/rest/api/3/issue/{issueKey}/comment'
+      : '/rest/api/2/issue/{issueKey}/comment';
+  }
+  
+  return endpoint;
+}
 
 /**
  * Helper function to get issue details from Jira
@@ -33,26 +84,27 @@ async function searchIssuesByJql(config: any, jql: string, startAt = 0, maxResul
  */
 async function getIssueTransitions(config: any, issueKey: string): Promise<any> {
   try {
-    const auth = Buffer.from(`${config.email}:${config.apiToken}`).toString('base64');
-    const headers = {
-      'Authorization': `Basic ${auth}`,
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'User-Agent': 'MCP-Atlassian-Server/1.0.0'
-    };
+    const headers = getAuthHeaders(config);
+    
     let baseUrl = config.baseUrl;
     if (!baseUrl.startsWith('https://')) {
       baseUrl = `https://${baseUrl}`;
     }
-    const url = `${baseUrl}/rest/api/3/issue/${issueKey}/transitions`;
+    
+    // Get appropriate endpoint for deployment type
+    const endpoint = getApiEndpoint(baseUrl, 'issueTransitions');
+    const url = `${baseUrl}${endpoint.replace('{issueKey}', issueKey)}`;
+    
     logger.debug(`Getting Jira issue transitions: ${url}`);
     const response = await fetch(url, { method: 'GET', headers, credentials: 'omit' });
+    
     if (!response.ok) {
       const statusCode = response.status;
       const responseText = await response.text();
       logger.error(`Jira API error (${statusCode}):`, responseText);
       throw new Error(`Jira API error: ${responseText}`);
     }
+    
     const data = await response.json();
     return data.transitions || [];
   } catch (error) {
@@ -66,26 +118,27 @@ async function getIssueTransitions(config: any, issueKey: string): Promise<any> 
  */
 async function getIssueComments(config: any, issueKey: string, startAt = 0, maxResults = 20): Promise<any> {
   try {
-    const auth = Buffer.from(`${config.email}:${config.apiToken}`).toString('base64');
-    const headers = {
-      'Authorization': `Basic ${auth}`,
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'User-Agent': 'MCP-Atlassian-Server/1.0.0'
-    };
+    const headers = getAuthHeaders(config);
+    
     let baseUrl = config.baseUrl;
     if (!baseUrl.startsWith('https://')) {
       baseUrl = `https://${baseUrl}`;
     }
-    const url = `${baseUrl}/rest/api/3/issue/${issueKey}/comment?startAt=${startAt}&maxResults=${maxResults}`;
+    
+    // Get appropriate endpoint for deployment type
+    const endpoint = getApiEndpoint(baseUrl, 'issueComments');
+    const url = `${baseUrl}${endpoint.replace('{issueKey}', issueKey)}?startAt=${startAt}&maxResults=${maxResults}`;
+    
     logger.debug(`Getting Jira issue comments: ${url}`);
     const response = await fetch(url, { method: 'GET', headers, credentials: 'omit' });
+    
     if (!response.ok) {
       const statusCode = response.status;
       const responseText = await response.text();
       logger.error(`Jira API error (${statusCode}):`, responseText);
       throw new Error(`Jira API error: ${responseText}`);
     }
+    
     const data = await response.json();
     return data;
   } catch (error) {
@@ -119,6 +172,12 @@ function extractTextFromADF(adf: any): string {
  * Format Jira issue data to standardized format
  */
 function formatIssueData(issue: any, baseUrl: string): any {
+  const deploymentType = getDeploymentType(baseUrl);
+  
+  // Normalize user data for assignee and reporter
+  const assignee = issue.fields?.assignee ? normalizeUserData(issue.fields.assignee, deploymentType) : null;
+  const reporter = issue.fields?.reporter ? normalizeUserData(issue.fields.reporter, deploymentType) : null;
+  
   return {
     id: issue.id,
     key: issue.key,
@@ -129,13 +188,17 @@ function formatIssueData(issue: any, baseUrl: string): any {
       name: issue.fields?.status?.name || 'Unknown',
       id: issue.fields?.status?.id || '0'
     },
-    assignee: issue.fields?.assignee ? {
-      displayName: issue.fields.assignee.displayName,
-      accountId: issue.fields.assignee.accountId
+    assignee: assignee ? {
+      id: assignee.id,
+      displayName: assignee.displayName,
+      accountId: assignee.original.accountId || assignee.id, // Backward compatibility
+      emailAddress: assignee.emailAddress
     } : null,
-    reporter: issue.fields?.reporter ? {
-      displayName: issue.fields.reporter.displayName,
-      accountId: issue.fields.reporter.accountId
+    reporter: reporter ? {
+      id: reporter.id,
+      displayName: reporter.displayName,
+      accountId: reporter.original.accountId || reporter.id, // Backward compatibility  
+      emailAddress: reporter.emailAddress
     } : null,
     priority: issue.fields?.priority ? {
       name: issue.fields.priority.name,
@@ -150,24 +213,31 @@ function formatIssueData(issue: any, baseUrl: string): any {
     },
     projectKey: issue.fields?.project?.key || '',
     projectName: issue.fields?.project?.name || '',
-    url: `${baseUrl}/browse/${issue.key}`
+    url: `${baseUrl}/browse/${issue.key}`,
+    deploymentType: deploymentType
   };
 }
 
 /**
  * Format Jira comment data to standardized format
  */
-function formatCommentData(comment: any): any {
+function formatCommentData(comment: any, deploymentType: 'cloud' | 'server'): any {
+  // Normalize user data for comment author
+  const author = comment.author ? normalizeUserData(comment.author, deploymentType) : null;
+  
   return {
     id: comment.id,
     body: extractTextFromADF(comment.body),
     rawBody: comment.body || '',
-    author: comment.author ? {
-      displayName: comment.author.displayName,
-      accountId: comment.author.accountId
+    author: author ? {
+      id: author.id,
+      displayName: author.displayName,
+      accountId: author.original.accountId || author.id, // Backward compatibility
+      emailAddress: author.emailAddress
     } : null,
     created: comment.created || null,
-    updated: comment.updated || null
+    updated: comment.updated || null,
+    deploymentType: deploymentType
   };
 }
 
@@ -368,11 +438,13 @@ export function registerIssueResources(server: McpServer) {
         }
         
         const { limit, offset } = Resources.extractPagingParams(params);
+        const deploymentType = getDeploymentType(config.baseUrl);
+        
         logger.info(`Getting comments for Jira issue: ${normalizedIssueKey}`);
         const commentData = await getIssueComments(config, normalizedIssueKey, offset, limit);
         
         // Format comments data
-        const formattedComments = (commentData.comments || []).map((c: any) => formatCommentData(c));
+        const formattedComments = (commentData.comments || []).map((c: any) => formatCommentData(c, deploymentType));
         
         const uriString = typeof uri === 'string' ? uri : uri.href;
         return Resources.createStandardResource(
