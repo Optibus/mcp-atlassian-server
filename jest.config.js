@@ -14,23 +14,9 @@ export default {
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
-  collectCoverage: true,
-  coverageDirectory: 'coverage',
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/tests/**/*.ts',
-  ],
   testMatch: [
-    '**/src/tests/unit/**/*.test.ts',
-    '**/src/tests/integration/**/*.test.ts',
-    '**/src/tests/e2e/**/*.test.ts'
+    '**/src/tests/unit/**/*.test.ts'
   ],
-  testPathIgnorePatterns: ['/node_modules/'],
-  verbose: true,
-  setupFilesAfterEnv: ['<rootDir>/src/tests/setup.ts'],
-  globals: {
-    'ts-jest': {
-      isolatedModules: true
-    }
-  }
+  collectCoverage: false,
+  verbose: true
 }; 

@@ -7,6 +7,7 @@ import { ApiError, ApiErrorType } from './error-handler.js';
 import { AtlassianConfig } from './atlassian-api-base.js';
 import { Logger } from './logger.js';
 import { StandardMetadata, createStandardMetadata } from '../schemas/common.js';
+import { getDeploymentType, validateAtlassianUrl } from './deployment-detector.js';
 
 const logger = Logger.getLogger('MCPHelpers');
 
@@ -15,35 +16,120 @@ const logger = Logger.getLogger('MCPHelpers');
  */
 export namespace Config {
   /**
-   * Get Atlassian configuration from environment variables
+   * Enhanced Atlassian configuration supporting both Cloud and Server/Data Center
    */
-  export function getAtlassianConfigFromEnv(): AtlassianConfig {
+  export interface EnhancedAtlassianConfig extends AtlassianConfig {
+    deploymentType: 'cloud' | 'server';
+  }
+
+  /**
+   * Get Atlassian configuration from environment variables with deployment detection
+   */
+  export function getAtlassianConfigFromEnv(): EnhancedAtlassianConfig {
     const ATLASSIAN_SITE_NAME = process.env.ATLASSIAN_SITE_NAME || '';
     const ATLASSIAN_USER_EMAIL = process.env.ATLASSIAN_USER_EMAIL || '';
     const ATLASSIAN_API_TOKEN = process.env.ATLASSIAN_API_TOKEN || '';
+    const ATLASSIAN_PAT_TOKEN = process.env.ATLASSIAN_PAT_TOKEN || '';
+    const ATLASSIAN_DEPLOYMENT_TYPE = process.env.ATLASSIAN_DEPLOYMENT_TYPE as 'cloud' | 'server' | undefined;
 
-    if (!ATLASSIAN_SITE_NAME || !ATLASSIAN_USER_EMAIL || !ATLASSIAN_API_TOKEN) {
-      logger.error('Missing Atlassian credentials in environment variables');
-      throw new Error('Missing Atlassian credentials in environment variables');
+    if (!ATLASSIAN_SITE_NAME) {
+      logger.error('Missing ATLASSIAN_SITE_NAME in environment variables');
+      throw new Error('Missing ATLASSIAN_SITE_NAME in environment variables');
     }
 
-    return {
-      baseUrl: ATLASSIAN_SITE_NAME.includes('.atlassian.net') 
-        ? `https://${ATLASSIAN_SITE_NAME}` 
-        : ATLASSIAN_SITE_NAME,
-      email: ATLASSIAN_USER_EMAIL,
-      apiToken: ATLASSIAN_API_TOKEN
-    };
+    // Normalize and validate the URL
+    const baseUrl = ATLASSIAN_SITE_NAME.includes('.atlassian.net') 
+      ? `https://${ATLASSIAN_SITE_NAME}` 
+      : ATLASSIAN_SITE_NAME;
+
+    const validation = validateAtlassianUrl(baseUrl);
+    if (!validation.isValid) {
+      logger.error('Invalid Atlassian URL:', validation.error);
+      throw new Error(`Invalid Atlassian URL: ${validation.error}`);
+    }
+
+    // Determine deployment type
+    const deploymentType = ATLASSIAN_DEPLOYMENT_TYPE || getDeploymentType(baseUrl);
+
+    // Validate credentials based on deployment type
+    if (deploymentType === 'cloud') {
+      if (!ATLASSIAN_USER_EMAIL || !ATLASSIAN_API_TOKEN) {
+        logger.error('Missing credentials for Cloud deployment (ATLASSIAN_USER_EMAIL, ATLASSIAN_API_TOKEN)');
+        throw new Error('Missing credentials for Cloud deployment');
+      }
+      return {
+        baseUrl,
+        email: ATLASSIAN_USER_EMAIL,
+        apiToken: ATLASSIAN_API_TOKEN,
+        deploymentType: 'cloud'
+      };
+    } else {
+      // Server/Data Center deployment
+      if (ATLASSIAN_PAT_TOKEN) {
+        // Personal Access Token (preferred for Server/DC)
+        return {
+          baseUrl,
+          email: '', // Not required for PAT
+          apiToken: ATLASSIAN_PAT_TOKEN,
+          deploymentType: 'server'
+        };
+      } else if (ATLASSIAN_USER_EMAIL && ATLASSIAN_API_TOKEN) {
+        // Basic Auth fallback for Server/DC
+        return {
+          baseUrl,
+          email: ATLASSIAN_USER_EMAIL,
+          apiToken: ATLASSIAN_API_TOKEN,
+          deploymentType: 'server'
+        };
+      } else {
+        logger.error('Missing credentials for Server/DC deployment (ATLASSIAN_PAT_TOKEN or ATLASSIAN_USER_EMAIL+ATLASSIAN_API_TOKEN)');
+        throw new Error('Missing credentials for Server/DC deployment');
+      }
+    }
   }
 
   /**
    * Helper to get Atlassian config from context or environment
    */
-  export function getConfigFromContextOrEnv(context: any): AtlassianConfig {
+  export function getConfigFromContextOrEnv(context: any): EnhancedAtlassianConfig {
     if (context?.atlassianConfig) {
       return context.atlassianConfig;
     }
     return getAtlassianConfigFromEnv();
+  }
+
+  /**
+   * Validate configuration for a specific deployment type
+   */
+  export function validateConfig(config: EnhancedAtlassianConfig): { isValid: boolean; error?: string } {
+    try {
+      // Validate URL format
+      const urlValidation = validateAtlassianUrl(config.baseUrl);
+      if (!urlValidation.isValid) {
+        return { isValid: false, error: urlValidation.error };
+      }
+
+      // Validate deployment type consistency
+      const detectedType = getDeploymentType(config.baseUrl);
+      if (config.deploymentType !== detectedType) {
+        logger.warn(`Deployment type mismatch: configured as ${config.deploymentType}, detected as ${detectedType}`);
+      }
+
+      // Validate credentials based on deployment type
+      if (config.deploymentType === 'cloud') {
+        if (!config.email || !config.apiToken) {
+          return { isValid: false, error: 'Cloud deployment requires email and API token' };
+        }
+      } else {
+        if (!config.apiToken) {
+          return { isValid: false, error: 'Server/DC deployment requires API token or PAT' };
+        }
+      }
+
+      return { isValid: true };
+    } catch (error) {
+      return { isValid: false, error: error instanceof Error ? error.message : String(error) };
+    }
   }
 }
 
