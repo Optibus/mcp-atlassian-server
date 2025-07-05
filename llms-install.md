@@ -6,8 +6,19 @@
 
 ## System Requirements
 - macOS 10.15+ or Windows 10+
-- Atlassian Cloud account and API token
+- Atlassian Cloud account and API token **OR** Atlassian Server/Data Center access
 - Cline AI assistant (main supported client)
+
+## Supported Atlassian Deployments
+
+MCP Atlassian Server supports both **Atlassian Cloud** and **Server/Data Center** deployments:
+
+| Deployment Type | URL Pattern | Authentication Method |
+|-----------------|-------------|----------------------|
+| **Atlassian Cloud** | `https://your-site.atlassian.net` | API Token + Email |
+| **Server/Data Center** | `https://jira.company.com` | Personal Access Token (PAT) or Basic Auth |
+
+The server automatically detects your deployment type based on the URL pattern and configures the appropriate authentication method.
 
 ## Installation Options
 
@@ -194,33 +205,81 @@ Replace:
   - Global install: `/path/to/global/node_modules/@phuc-nt/mcp-atlassian-server/dist/index.js` 
   - Local install: `/path/to/your/project/node_modules/@phuc-nt/mcp-atlassian-server/dist/index.js`
 - For **source installation**: Use the path you just obtained with `pwd` command
-- `your-site.atlassian.net` with your Atlassian site name
-- `your-email@example.com` with your Atlassian email
-- `your-api-token` with your Atlassian API token
+- Configure environment variables based on your deployment type (see below)
+
+## Environment Variables Configuration
+
+### For Atlassian Cloud
+```bash
+ATLASSIAN_SITE_NAME=your-site.atlassian.net
+ATLASSIAN_USER_EMAIL=your-email@example.com
+ATLASSIAN_API_TOKEN=your-cloud-api-token
+```
+
+### For Server/Data Center
+```bash
+# Option 1: Personal Access Token (Recommended)
+ATLASSIAN_SITE_NAME=https://jira.company.com
+ATLASSIAN_PAT_TOKEN=your-personal-access-token
+
+# Option 2: Basic Authentication (Fallback)
+ATLASSIAN_SITE_NAME=https://jira.company.com
+ATLASSIAN_USER_EMAIL=your-username
+ATLASSIAN_API_TOKEN=your-password
+
+# Optional: Force deployment type (auto-detected if not specified)
+ATLASSIAN_DEPLOYMENT_TYPE=server
+```
+
+> **Note**: The server automatically detects your deployment type based on the URL pattern. You only need to set `ATLASSIAN_DEPLOYMENT_TYPE` if auto-detection fails.
 
 > **Note for global npm installs**: You can find the global node_modules path by running: `npm root -g`
 
 > **Note for Windows**: The path on Windows may look like `C:\\Users\\YourName\\AppData\\Roaming\\npm\\node_modules\\@phuc-nt\\mcp-atlassian-server\\dist\\index.js` (use `\\` instead of `/`).
 
-## Step 5: Get Atlassian API Token
+## Step 5: Get Authentication Credentials
+
+### For Atlassian Cloud - API Token
 1. Go to https://id.atlassian.com/manage-profile/security/api-tokens
 2. Click "Create API token", name it (e.g., "MCP Server")
 3. Copy the token immediately (it will not be shown again)
 
-### Note on API Token Permissions
+### For Server/Data Center - Personal Access Token (Recommended)
+1. Log into your Atlassian Server/Data Center instance
+2. Go to **Profile** → **Personal Access Tokens**
+3. Click **Create token**
+4. Enter a name (e.g., "MCP Server") and set expiration
+5. Select required permissions:
+   - **Jira**: Browse projects, Create issues, Edit issues, Assign issues, Transition issues
+   - **Confluence**: View spaces, Add pages, Add comments, Edit pages
+6. Click **Create** and copy the token immediately
 
+### For Server/Data Center - Basic Authentication (Fallback)
+If Personal Access Tokens are not available:
+1. Use your regular username and password
+2. **Security Note**: This method is less secure than PAT tokens
+3. Consider creating a dedicated service account for MCP Server
+
+### Note on Authentication Permissions
+
+#### For Cloud API Tokens
 - **The API token inherits all permissions of the account that created it** – there is no separate permission mechanism for the token itself.
 - **To use all features of MCP Server**, the account creating the token must have appropriate permissions:
   - **Jira**: Needs Browse Projects, Edit Issues, Assign Issues, Transition Issues, Create Issues, etc.
   - **Confluence**: Needs View Spaces, Add Pages, Add Comments, Edit Pages, etc.
-- **If the token is read-only**, you can only use read resources (view issues, projects) but cannot create/update.
-- **Recommendations**:
-  - For personal use: You can use your main account's token
-  - For team/long-term use: Create a dedicated service account with appropriate permissions
-  - Do not share your token; if you suspect it is compromised, revoke and create a new one
-- **If you get a "permission denied" error**, check the permissions of the account that created the token on the relevant projects/spaces
 
-> **Summary**: MCP Atlassian Server works best when using an API token from an account with all the permissions needed for the actions you want the AI to perform on Jira/Confluence.
+#### For Server/Data Center Authentication
+- **Personal Access Tokens (PAT)**: You can scope permissions when creating the token
+- **Basic Authentication**: Uses the full permissions of the user account
+- **If the token/account is read-only**, you can only use read resources (view issues, projects) but cannot create/update.
+
+#### General Recommendations
+- **For personal use**: You can use your main account's credentials
+- **For team/long-term use**: Create a dedicated service account with appropriate permissions
+- **Do not share your credentials**; if you suspect they are compromised, revoke and create new ones
+- **If you get a "permission denied" error**, check the permissions of the account/token on the relevant projects/spaces
+
+> **Summary**: MCP Atlassian Server works best when using credentials from an account with all the permissions needed for the actions you want the AI to perform on Jira/Confluence.
 
 ### Security Warning When Using LLMs
 
@@ -272,3 +331,103 @@ After configuration, test the connection by asking Cline a question related to J
 - "Create a new issue in project DEMO"
 
 Cline is optimized to work with this MCP Atlassian Server (by phuc-nt) and will automatically use the most appropriate resources and tools for your queries.
+
+## Troubleshooting Server/Data Center Issues
+
+### Common Server/Data Center Problems
+
+#### 1. SSL Certificate Issues
+
+**Problem**: SSL certificate errors when connecting to Server/Data Center instances.
+
+**Error Messages**:
+- `UNABLE_TO_VERIFY_LEAF_SIGNATURE`
+- `SELF_SIGNED_CERT_IN_CHAIN`
+- `CERT_HAS_EXPIRED`
+
+**Solutions**:
+```bash
+# For development/testing (temporary)
+export NODE_TLS_REJECT_UNAUTHORIZED=0
+
+# For production (recommended)
+export NODE_EXTRA_CA_CERTS=/path/to/ca-bundle.pem
+```
+
+#### 2. Personal Access Token Issues
+
+**Problem**: PAT authentication failures.
+
+**Check**:
+- Token is not expired
+- Token has appropriate scopes/permissions
+- Token was created correctly
+
+**Test PAT manually**:
+```bash
+curl -H "Authorization: Bearer your-pat-token" \
+     -H "Accept: application/json" \
+     https://jira.company.com/rest/api/2/myself
+```
+
+#### 3. Network Connectivity
+
+**Problem**: Cannot reach Server/Data Center instance.
+
+**Check**:
+- VPN connection (if required)
+- Firewall settings
+- DNS resolution
+- Proxy configuration
+
+**Test connectivity**:
+```bash
+# Test basic connectivity
+ping jira.company.com
+
+# Test HTTPS connectivity
+curl -I https://jira.company.com
+```
+
+#### 4. API Version Compatibility
+
+**Problem**: Some features don't work with older Server/Data Center versions.
+
+**Solutions**:
+- Check your Atlassian version
+- Consult API documentation for version compatibility
+- Some Cloud-specific features may not be available
+
+#### 5. Permission Errors
+
+**Problem**: 403 Forbidden errors when accessing resources.
+
+**Solutions**:
+- Verify user permissions on projects/spaces
+- Check PAT token scopes
+- Contact your Atlassian administrator
+
+### Debug Mode
+
+Enable debug logging to troubleshoot issues:
+
+```bash
+# Enable debug mode
+DEBUG=mcp-atlassian-server:* node ./dist/index.js
+
+# Or set log level
+LOG_LEVEL=debug node ./dist/index.js
+```
+
+### Getting Help
+
+1. **Check the troubleshooting guide** above
+2. **Review existing GitHub issues**: https://github.com/phuc-nt/mcp-atlassian-server/issues
+3. **Enable debug logging** and gather error details
+4. **Create a new GitHub issue** with:
+   - Your Server/Data Center version
+   - Error messages and logs
+   - Configuration details (without sensitive information)
+   - Steps to reproduce the issue
+
+For comprehensive Server/Data Center setup instructions, see: [docs/dev-guide/server-datacenter-setup.md](./docs/dev-guide/server-datacenter-setup.md)

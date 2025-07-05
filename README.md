@@ -82,7 +82,19 @@ The guide includes:
 - Step-by-step setup for Node.js environments
 - Configuring Cline AI assistant to connect with Atlassian
 - Getting and setting up Atlassian API tokens
+- **NEW**: Server/Data Center deployment support
 - Security recommendations and best practices
+
+### Supported Atlassian Deployments
+
+MCP Atlassian Server supports both **Atlassian Cloud** and **Server/Data Center** deployments:
+
+| Deployment Type | URL Pattern | Authentication Method |
+|-----------------|-------------|----------------------|
+| **Atlassian Cloud** | `https://your-site.atlassian.net` | API Token + Email |
+| **Server/Data Center** | `https://jira.company.com` | Personal Access Token (PAT) or Basic Auth |
+
+The server automatically detects your deployment type based on the URL pattern and configures the appropriate authentication method.
 
 ### Installing via Smithery
 
@@ -168,7 +180,35 @@ sequenceDiagram
 - Your API token inherits all permissions of the user that created it
 - Never share your token with a non-trusted party
 - Be cautious when asking LLMs to analyze config files containing your token
+- **Server/Data Center**: Personal Access Tokens (PAT) are recommended over Basic Auth for better security
+- **SSL Certificates**: Server/Data Center deployments may require SSL verification settings
 - See detailed security guidelines in [llms-install.md](./llms-install.md#security-warning-when-using-llms)
+
+## Environment Variables
+
+### Atlassian Cloud Configuration
+```bash
+ATLASSIAN_SITE_NAME=your-site.atlassian.net
+ATLASSIAN_USER_EMAIL=your-email@company.com
+ATLASSIAN_API_TOKEN=your-cloud-api-token
+```
+
+### Server/Data Center Configuration
+```bash
+# Option 1: Personal Access Token (Recommended)
+ATLASSIAN_SITE_NAME=https://jira.company.com
+ATLASSIAN_PAT_TOKEN=your-personal-access-token
+
+# Option 2: Basic Authentication (Fallback)
+ATLASSIAN_SITE_NAME=https://jira.company.com
+ATLASSIAN_USER_EMAIL=your-username
+ATLASSIAN_API_TOKEN=your-password
+
+# Optional: Deployment type override (auto-detected if not specified)
+ATLASSIAN_DEPLOYMENT_TYPE=server
+```
+
+> **Note**: The server automatically detects your deployment type based on the URL pattern. You only need to set `ATLASSIAN_DEPLOYMENT_TYPE` if auto-detection fails.
 
 ## Contribute & Support
 
