@@ -3,6 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Logger } from '../../utils/logger.js';
 import { updateFilter } from '../../utils/jira-tool-api-v3.js';
 import { Tools, Config } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 // Initialize logger
 const logger = Logger.getLogger('JiraTools:updateFilter');
@@ -20,7 +21,9 @@ type UpdateFilterParams = z.infer<typeof updateFilterSchema>;
 
 async function updateFilterToolImpl(params: UpdateFilterParams, context: any) {
   const config = Config.getConfigFromContextOrEnv(context);
-  logger.info(`Updating filter with ID: ${params.filterId}`);
+  const deploymentType = getDeploymentType(config.baseUrl);
+  
+  logger.info(`Updating filter with ID: ${params.filterId} (${deploymentType})`);
   const response = await updateFilter(config, params.filterId, params);
   return {
     id: response.id,

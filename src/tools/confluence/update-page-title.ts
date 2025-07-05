@@ -6,6 +6,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { McpResponse, createSuccessResponse, createErrorResponse } from '../../utils/mcp-core.js';
 import { updateConfluencePageTitleV2 } from '../../utils/confluence-tool-api.js';
 import { Config } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 const logger = Logger.getLogger('ConfluenceTools:updatePageTitle');
 
@@ -22,7 +23,8 @@ export async function updatePageTitleHandler(
   config: AtlassianConfig
 ): Promise<{ success: boolean; id: string; title: string; version: number; message: string }> {
   try {
-    logger.info(`Updating page title (v2) with ID: ${params.pageId}`);
+    const deploymentType = getDeploymentType(config.baseUrl);
+    logger.info(`Updating page title (v2) with ID: ${params.pageId} (${deploymentType})`);
     const data = await updateConfluencePageTitleV2(config, params);
     return {
       success: true,

@@ -9,6 +9,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createFilter } from '../../utils/jira-tool-api-v3.js';
 import { Logger } from '../../utils/logger.js';
 import { Tools, Config } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 // Initialize logger
 const logger = Logger.getLogger('JiraTools:createFilter');
@@ -25,7 +26,9 @@ type CreateFilterParams = z.infer<typeof createFilterSchema>;
 
 async function createFilterToolImpl(params: CreateFilterParams, context: any) {
   const config = Config.getConfigFromContextOrEnv(context);
-  logger.info(`Creating filter: ${params.name}`);
+  const deploymentType = getDeploymentType(config.baseUrl);
+  
+  logger.info(`Creating filter: ${params.name} (${deploymentType})`);
   const response = await createFilter(config, params.name, params.jql, params.description, params.favourite);
   return {
     id: response.id,

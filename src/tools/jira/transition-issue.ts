@@ -5,6 +5,7 @@ import { ApiError } from '../../utils/error-handler.js';
 import { Logger } from '../../utils/logger.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Tools, Config } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 // Initialize logger
 const logger = Logger.getLogger('JiraTools:transitionIssue');
@@ -20,17 +21,22 @@ type TransitionIssueParams = z.infer<typeof transitionIssueSchema>;
 
 async function transitionIssueToolImpl(params: TransitionIssueParams, context: any) {
   const config: AtlassianConfig = Config.getConfigFromContextOrEnv(context);
-  logger.info(`Transitioning issue ${params.issueIdOrKey} with transition ${params.transitionId}`);
+  const deploymentType = getDeploymentType(config.baseUrl);
+  
+  logger.info(`Transitioning issue ${params.issueIdOrKey} with transition ${params.transitionId} (${deploymentType})`);
+  
   const result = await transitionIssue(
     config,
     params.issueIdOrKey,
     params.transitionId,
     params.comment
   );
+  
   return {
     issueIdOrKey: params.issueIdOrKey,
     success: result.success,
     transitionId: params.transitionId,
+    deploymentType: deploymentType,
     message: result.message
   };
 }

@@ -5,6 +5,7 @@ import { ApiError, ApiErrorType } from '../../utils/error-handler.js';
 import { Logger } from '../../utils/logger.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Config } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 const logger = Logger.getLogger('ConfluenceTools:updateFooterComment');
 
@@ -23,7 +24,8 @@ export async function updateFooterCommentHandler(
   config: AtlassianConfig
 ): Promise<{ success: boolean; id: string|number; version: number; message: string }> {
   try {
-    logger.info(`Updating footer comment (v2) with ID: ${params.commentId}`);
+    const deploymentType = getDeploymentType(config.baseUrl);
+    logger.info(`Updating footer comment (v2) with ID: ${params.commentId} (${deploymentType})`);
     const data = await updateConfluenceFooterCommentV2(config, params);
     return {
       success: true,

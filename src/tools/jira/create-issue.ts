@@ -5,6 +5,8 @@ import { createIssue } from '../../utils/jira-tool-api-v3.js';
 import { ApiError } from '../../utils/error-handler.js';
 import { Logger } from '../../utils/logger.js';
 import { Tools, Config } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
+import { formatUserForAssignment } from '../../utils/user-id-helper.js';
 
 // Initialize logger
 const logger = Logger.getLogger('JiraTools:createIssue');
@@ -16,7 +18,7 @@ export const createIssueSchema = z.object({
   issueType: z.string().default('Task').describe('Issue type (e.g., Bug, Task, Story)'),
   description: z.string().optional().describe('Issue description'),
   priority: z.string().optional().describe('Priority (e.g., High, Medium, Low)'),
-  assignee: z.string().optional().describe('Assignee username'),
+  assignee: z.string().optional().describe('Assignee identifier (accountId for Cloud, username for Server/DC)'),
   labels: z.array(z.string()).optional().describe('Labels for the issue')
 });
 
@@ -24,17 +26,26 @@ type CreateIssueParams = z.infer<typeof createIssueSchema>;
 
 async function createIssueToolImpl(params: CreateIssueParams, context: any) {
   const config: AtlassianConfig = Config.getConfigFromContextOrEnv(context);
-  logger.info(`Creating new issue in project: ${params.projectKey}`);
+  const deploymentType = getDeploymentType(config.baseUrl);
+  
+  logger.info(`Creating new issue in project: ${params.projectKey} (${deploymentType})`);
+  
   const additionalFields: Record<string, any> = {};
+  
   if (params.priority) {
     additionalFields.priority = { name: params.priority };
   }
+  
   if (params.assignee) {
-    additionalFields.assignee = { name: params.assignee };
+    // Format assignee based on deployment type
+    additionalFields.assignee = formatUserForAssignment(params.assignee, deploymentType);
+    logger.debug(`Formatted assignee for ${deploymentType}:`, additionalFields.assignee);
   }
+  
   if (params.labels && params.labels.length > 0) {
     additionalFields.labels = params.labels;
   }
+  
   const newIssue = await createIssue(
     config,
     params.projectKey,
@@ -43,11 +54,13 @@ async function createIssueToolImpl(params: CreateIssueParams, context: any) {
     params.issueType,
     additionalFields
   );
+  
   return {
     id: newIssue.id,
     key: newIssue.key,
     self: newIssue.self,
-    success: true
+    success: true,
+    deploymentType: deploymentType
   };
 }
 

@@ -5,6 +5,7 @@ import { ApiError } from '../../utils/error-handler.js';
 import { Logger } from '../../utils/logger.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Tools, Config } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 // Initialize logger
 const logger = Logger.getLogger('JiraTools:updateIssue');
@@ -23,7 +24,9 @@ type UpdateIssueParams = z.infer<typeof updateIssueSchema>;
 
 async function updateIssueToolImpl(params: UpdateIssueParams, context: any) {
   const config: AtlassianConfig = Config.getConfigFromContextOrEnv(context);
-  logger.info(`Updating issue: ${params.issueIdOrKey}`);
+  const deploymentType = getDeploymentType(config.baseUrl);
+  
+  logger.info(`Updating issue: ${params.issueIdOrKey} (${deploymentType})`);
   const fields: Record<string, any> = {};
   if (params.summary) {
     fields.summary = params.summary;

@@ -6,6 +6,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { McpResponse, createSuccessResponse, createErrorResponse } from '../../utils/mcp-core.js';
 import { deleteConfluencePageV2 } from '../../utils/confluence-tool-api.js';
 import { Config } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 const logger = Logger.getLogger('ConfluenceTools:deletePage');
 
@@ -23,7 +24,8 @@ export async function deletePageHandler(
   config: AtlassianConfig
 ): Promise<{ success: boolean; message: string }> {
   try {
-    logger.info(`Deleting page (v2) with ID: ${params.pageId}`);
+    const deploymentType = getDeploymentType(config.baseUrl);
+    logger.info(`Deleting page (v2) with ID: ${params.pageId} (${deploymentType})`);
     await deleteConfluencePageV2(config, params);
     return { success: true, message: `Page ${params.pageId} deleted successfully.` };
   } catch (error) {

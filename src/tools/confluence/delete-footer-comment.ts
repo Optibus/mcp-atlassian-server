@@ -5,6 +5,7 @@ import { ApiError, ApiErrorType } from '../../utils/error-handler.js';
 import { Logger } from '../../utils/logger.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Config } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 const logger = Logger.getLogger('ConfluenceTools:deleteFooterComment');
 
@@ -19,7 +20,8 @@ export async function deleteFooterCommentHandler(
   config: AtlassianConfig
 ): Promise<{ success: boolean; id: string|number; message: string }> {
   try {
-    logger.info(`Deleting footer comment (v2) with ID: ${params.commentId}`);
+    const deploymentType = getDeploymentType(config.baseUrl);
+    logger.info(`Deleting footer comment (v2) with ID: ${params.commentId} (${deploymentType})`);
     await deleteConfluenceFooterCommentV2(config, params.commentId);
     return {
       success: true,

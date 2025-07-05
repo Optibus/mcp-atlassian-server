@@ -3,6 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { removeGadgetFromDashboard } from '../../utils/jira-tool-api-v3.js';
 import { Logger } from '../../utils/logger.js';
 import { Tools, Config } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 const logger = Logger.getLogger('JiraTools:removeGadgetFromDashboard');
 
@@ -15,7 +16,10 @@ type RemoveGadgetFromDashboardParams = z.infer<typeof removeGadgetFromDashboardS
 
 async function removeGadgetFromDashboardToolImpl(params: RemoveGadgetFromDashboardParams, context: any) {
   const config = Config.getConfigFromContextOrEnv(context);
+  const deploymentType = getDeploymentType(config.baseUrl);
   const { dashboardId, gadgetId } = params;
+  
+  logger.info(`Removing gadget ${gadgetId} from dashboard ${dashboardId} (${deploymentType})`);
   const result = await removeGadgetFromDashboard(config, dashboardId, gadgetId);
   return {
     success: true,

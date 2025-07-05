@@ -3,6 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createDashboard } from '../../utils/jira-tool-api-v3.js';
 import { Logger } from '../../utils/logger.js';
 import { Tools, Config } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 const logger = Logger.getLogger('JiraTools:createDashboard');
 
@@ -16,6 +17,9 @@ type CreateDashboardParams = z.infer<typeof createDashboardSchema>;
 
 async function createDashboardToolImpl(params: CreateDashboardParams, context: any) {
   const config = Config.getConfigFromContextOrEnv(context);
+  const deploymentType = getDeploymentType(config.baseUrl);
+  
+  logger.info(`Creating dashboard: ${params.name} (${deploymentType})`);
   const result = await createDashboard(config, params);
   return {
     success: true,

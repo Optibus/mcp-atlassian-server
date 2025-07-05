@@ -3,6 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { startSprint } from '../../utils/jira-tool-api-agile.js';
 import { Logger } from '../../utils/logger.js';
 import { Tools, Config } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 const logger = Logger.getLogger('JiraTools:startSprint');
 
@@ -17,7 +18,10 @@ type StartSprintParams = z.infer<typeof startSprintSchema>;
 
 async function startSprintToolImpl(params: StartSprintParams, context: any) {
   const config = Config.getConfigFromContextOrEnv(context);
+  const deploymentType = getDeploymentType(config.baseUrl);
   const { sprintId, startDate, endDate, goal } = params;
+  
+  logger.info(`Starting sprint ${sprintId} (${deploymentType})`);
   const result = await startSprint(config, sprintId, startDate, endDate, goal);
   return {
     success: true,

@@ -3,6 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { addGadgetToDashboard } from '../../utils/jira-tool-api-v3.js';
 import { Logger } from '../../utils/logger.js';
 import { Tools, Config } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 const logger = Logger.getLogger('JiraTools:addGadgetToDashboard');
 
@@ -35,6 +36,9 @@ async function addGadgetToDashboardToolImpl(params: AddGadgetToDashboardParams, 
     };
   }
   const config = Config.getConfigFromContextOrEnv(context);
+  const deploymentType = getDeploymentType(config.baseUrl);
+  
+  logger.info(`Adding gadget to dashboard ${params.dashboardId} (${deploymentType})`);
   const { dashboardId, moduleKey, uri, ...rest } = params;
   let gadgetUri = uri;
   if (!gadgetUri && moduleKey) {

@@ -3,6 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { closeSprint } from '../../utils/jira-tool-api-agile.js';
 import { Logger } from '../../utils/logger.js';
 import { Tools, Config } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 const logger = Logger.getLogger('JiraTools:closeSprint');
 
@@ -15,7 +16,10 @@ type CloseSprintParams = z.infer<typeof closeSprintSchema>;
 
 async function closeSprintToolImpl(params: CloseSprintParams, context: any) {
   const config = Config.getConfigFromContextOrEnv(context);
+  const deploymentType = getDeploymentType(config.baseUrl);
   const { sprintId, ...options } = params;
+  
+  logger.info(`Closing sprint ${sprintId} (${deploymentType})`);
   const result = await closeSprint(config, sprintId, options);
   return {
     success: true,

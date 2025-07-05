@@ -3,6 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { rankBacklogIssues } from '../../utils/jira-tool-api-agile.js';
 import { Logger } from '../../utils/logger.js';
 import { Tools, Config } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 const logger = Logger.getLogger('JiraTools:rankBacklogIssues');
 
@@ -17,7 +18,10 @@ type RankBacklogIssuesParams = z.infer<typeof rankBacklogIssuesSchema>;
 
 async function rankBacklogIssuesToolImpl(params: RankBacklogIssuesParams, context: any) {
   const config = Config.getConfigFromContextOrEnv(context);
+  const deploymentType = getDeploymentType(config.baseUrl);
   const { boardId, issueKeys, rankBeforeIssue, rankAfterIssue } = params;
+  
+  logger.info(`Ranking ${issueKeys.length} issues in backlog for board ${boardId} (${deploymentType})`);
   const result = await rankBacklogIssues(config, boardId, issueKeys, { rankBeforeIssue, rankAfterIssue });
   return {
     success: true,

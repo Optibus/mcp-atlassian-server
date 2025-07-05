@@ -3,6 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { deleteFilter } from '../../utils/jira-tool-api-v3.js';
 import { Logger } from '../../utils/logger.js';
 import { Tools, Config } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 // Initialize logger
 const logger = Logger.getLogger('JiraTools:deleteFilter');
@@ -16,7 +17,9 @@ type DeleteFilterParams = z.infer<typeof deleteFilterSchema>;
 
 async function deleteFilterToolImpl(params: DeleteFilterParams, context: any) {
   const config = Config.getConfigFromContextOrEnv(context);
-  logger.info(`Deleting filter with ID: ${params.filterId}`);
+  const deploymentType = getDeploymentType(config.baseUrl);
+  
+  logger.info(`Deleting filter with ID: ${params.filterId} (${deploymentType})`);
   await deleteFilter(config, params.filterId);
   return {
     success: true,

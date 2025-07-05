@@ -3,6 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { addIssuesToBacklog } from '../../utils/jira-tool-api-agile.js';
 import { Logger } from '../../utils/logger.js';
 import { Tools, Config } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 const logger = Logger.getLogger('JiraTools:addIssuesToBacklog');
 
@@ -18,8 +19,11 @@ type AddIssuesToBacklogParams = z.infer<typeof addIssuesToBacklogSchema>;
 
 async function addIssuesToBacklogToolImpl(params: AddIssuesToBacklogParams, context: any) {
   const config = Config.getConfigFromContextOrEnv(context);
+  const deploymentType = getDeploymentType(config.baseUrl);
   const { boardId, issueKeys } = params;
   const keys = Array.isArray(issueKeys) ? issueKeys : [issueKeys];
+  
+  logger.info(`Adding ${keys.length} issues to backlog (${deploymentType})`);
   const result = await addIssuesToBacklog(config, keys, boardId);
   return {
     success: true,

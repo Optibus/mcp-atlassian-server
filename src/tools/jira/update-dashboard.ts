@@ -3,6 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { updateDashboard } from '../../utils/jira-tool-api-v3.js';
 import { Logger } from '../../utils/logger.js';
 import { Tools, Config } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 const logger = Logger.getLogger('JiraTools:updateDashboard');
 
@@ -17,7 +18,10 @@ type UpdateDashboardParams = z.infer<typeof updateDashboardSchema>;
 
 async function updateDashboardToolImpl(params: UpdateDashboardParams, context: any) {
   const config = Config.getConfigFromContextOrEnv(context);
+  const deploymentType = getDeploymentType(config.baseUrl);
   const { dashboardId, ...data } = params;
+  
+  logger.info(`Updating dashboard ${dashboardId} (${deploymentType})`);
   const result = await updateDashboard(config, dashboardId, data);
   return {
     success: true,

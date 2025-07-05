@@ -7,6 +7,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { McpResponse, createSuccessResponse, createErrorResponse } from '../../utils/mcp-core.js';
 import { createConfluencePageV2 } from '../../utils/confluence-tool-api.js';
 import { Config } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 // Initialize logger
 const logger = Logger.getLogger('ConfluenceTools:createPage');
@@ -46,13 +47,16 @@ export async function createPageHandler(
   config: AtlassianConfig
 ): Promise<CreatePageResult> {
   try {
-    logger.info(`Creating new page (v2) "${params.title}" in spaceId ${params.spaceId}`);
+    const deploymentType = getDeploymentType(config.baseUrl);
+    logger.info(`Creating new page (v2) "${params.title}" in spaceId ${params.spaceId} (${deploymentType})`);
+    
     const data = await createConfluencePageV2(config, {
       spaceId: params.spaceId,
       title: params.title,
       content: params.content,
       parentId: params.parentId
     });
+    
     return {
       id: data.id,
       key: data.key || '',
@@ -60,8 +64,9 @@ export async function createPageHandler(
       self: data._links.self,
       webui: data._links.webui,
       success: true,
-      spaceId: params.spaceId
-    };
+      spaceId: params.spaceId,
+      deploymentType: deploymentType
+    } as CreatePageResult & { deploymentType: string };
   } catch (error) {
     if (error instanceof ApiError) {
       throw error;

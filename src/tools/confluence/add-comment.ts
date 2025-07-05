@@ -7,6 +7,8 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { McpResponse, createSuccessResponse, createErrorResponse } from '../../utils/mcp-core.js';
 import { addConfluenceCommentV2 } from '../../utils/confluence-tool-api.js';
 import { Config, Tools } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
+import { normalizeUserData } from '../../utils/user-id-helper.js';
 
 // Initialize logger
 const logger = Logger.getLogger('ConfluenceTools:addComment');
@@ -33,18 +35,29 @@ export async function addCommentHandler(
   config: AtlassianConfig
 ): Promise<AddCommentResult> {
   try {
-    logger.info(`Adding comment (v2) to page: ${params.pageId}`);
+    const deploymentType = getDeploymentType(config.baseUrl);
+    logger.info(`Adding comment (v2) to page: ${params.pageId} (${deploymentType})`);
+    
     const data = await addConfluenceCommentV2(config, {
       pageId: params.pageId,
       content: params.content
     });
+    
+    // Normalize author data based on deployment type
+    let authorName = '';
+    if (data.createdBy) {
+      const normalizedAuthor = normalizeUserData(data.createdBy, deploymentType);
+      authorName = normalizedAuthor?.displayName || data.createdBy.displayName || '';
+    }
+    
     return {
       id: data.id,
       created: data.createdAt,
-      author: data.createdBy?.displayName || '',
+      author: authorName,
       body: data.body?.value || '',
-      success: true
-    };
+      success: true,
+      deploymentType: deploymentType
+    } as AddCommentResult & { deploymentType: string };
   } catch (error) {
     if (error instanceof ApiError) {
       throw error;

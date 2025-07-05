@@ -7,6 +7,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { McpResponse, createSuccessResponse, createErrorResponse } from '../../utils/mcp-core.js';
 import { updateConfluencePageV2 } from '../../utils/confluence-tool-api.js';
 import { Config } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 // Initialize logger
 const logger = Logger.getLogger('ConfluenceTools:updatePage');
@@ -46,7 +47,8 @@ export async function updatePageHandler(
   config: AtlassianConfig
 ): Promise<UpdatePageResult> {
   try {
-    logger.info(`Updating page (v2) with ID: ${params.pageId}`);
+    const deploymentType = getDeploymentType(config.baseUrl);
+    logger.info(`Updating page (v2) with ID: ${params.pageId} (${deploymentType})`);
     // Lấy version, title, content hiện tại nếu thiếu
     const baseUrl = config.baseUrl.endsWith('/wiki') ? config.baseUrl : `${config.baseUrl}/wiki`;
     const auth = Buffer.from(`${config.email}:${config.apiToken}`).toString('base64');

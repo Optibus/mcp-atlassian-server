@@ -3,6 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { addIssueToSprint } from '../../utils/jira-tool-api-agile.js';
 import { Logger } from '../../utils/logger.js';
 import { Tools, Config } from '../../utils/mcp-helpers.js';
+import { getDeploymentType } from '../../utils/deployment-detector.js';
 
 const logger = Logger.getLogger('JiraTools:addIssueToSprint');
 
@@ -15,7 +16,10 @@ type AddIssueToSprintParams = z.infer<typeof addIssueToSprintSchema>;
 
 async function addIssueToSprintToolImpl(params: AddIssueToSprintParams, context: any) {
   const config = Config.getConfigFromContextOrEnv(context);
+  const deploymentType = getDeploymentType(config.baseUrl);
   const { sprintId, issueKeys } = params;
+  
+  logger.info(`Adding ${issueKeys.length} issues to sprint ${sprintId} (${deploymentType})`);
   const result = await addIssueToSprint(config, sprintId, issueKeys);
   return {
     success: true,
