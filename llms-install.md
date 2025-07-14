@@ -237,62 +237,198 @@ ATLASSIAN_DEPLOYMENT_TYPE=server
 
 > **Note for Windows**: The path on Windows may look like `C:\\Users\\YourName\\AppData\\Roaming\\npm\\node_modules\\@phuc-nt\\mcp-atlassian-server\\dist\\index.js` (use `\\` instead of `/`).
 
-## Step 5: Get Authentication Credentials
+## Authentication Credentials
 
-### For Atlassian Cloud - API Token
-1. Go to https://id.atlassian.com/manage-profile/security/api-tokens
-2. Click "Create API token", name it (e.g., "MCP Server")
-3. Copy the token immediately (it will not be shown again)
+### Deployment Type Detection
 
-### For Server/Data Center - Personal Access Token (Recommended)
-1. Log into your Atlassian Server/Data Center instance
-2. Go to **Profile** → **Personal Access Tokens**
-3. Click **Create token**
-4. Enter a name (e.g., "MCP Server") and set expiration
-5. Select required permissions:
-   - **Jira**: Browse projects, Create issues, Edit issues, Assign issues, Transition issues
-   - **Confluence**: View spaces, Add pages, Add comments, Edit pages
-6. Click **Create** and copy the token immediately
+MCP Atlassian Server automatically detects your deployment type based on URL patterns:
 
-### For Server/Data Center - Basic Authentication (Fallback)
-If Personal Access Tokens are not available:
-1. Use your regular username and password
-2. **Security Note**: This method is less secure than PAT tokens
-3. Consider creating a dedicated service account for MCP Server
+| Pattern | Deployment Type | Example |
+|---------|-----------------|---------|
+| `*.atlassian.net` | Cloud | `company.atlassian.net` |
+| `api.atlassian.com` | Cloud (OAuth) | `api.atlassian.com/ex/jira/cloud-id` |
+| Custom domains | Server/Data Center | `jira.company.com` |
+| localhost | Server/Data Center | `localhost:8080` |
+| Private IPs | Server/Data Center | `192.168.1.100` |
 
-### Note on Authentication Permissions
+### Configuration Options
 
-#### For Cloud API Tokens
-- **The API token inherits all permissions of the account that created it** – there is no separate permission mechanism for the token itself.
-- **To use all features of MCP Server**, the account creating the token must have appropriate permissions:
-  - **Jira**: Needs Browse Projects, Edit Issues, Assign Issues, Transition Issues, Create Issues, etc.
-  - **Confluence**: Needs View Spaces, Add Pages, Add Comments, Edit Pages, etc.
+You can configure the server using either:
+1. **Separate Service Configuration** (Recommended for Server/Data Center)
+2. **Legacy Single Configuration** (Still supported)
 
-#### For Server/Data Center Authentication
-- **Personal Access Tokens (PAT)**: You can scope permissions when creating the token
-- **Basic Authentication**: Uses the full permissions of the user account
-- **If the token/account is read-only**, you can only use read resources (view issues, projects) but cannot create/update.
+#### Option 1: Separate Service Configuration
 
-#### General Recommendations
-- **For personal use**: You can use your main account's credentials
-- **For team/long-term use**: Create a dedicated service account with appropriate permissions
-- **Do not share your credentials**; if you suspect they are compromised, revoke and create new ones
-- **If you get a "permission denied" error**, check the permissions of the account/token on the relevant projects/spaces
+Configure Jira and Confluence independently with separate URLs and credentials:
 
-> **Summary**: MCP Atlassian Server works best when using credentials from an account with all the permissions needed for the actions you want the AI to perform on Jira/Confluence.
+```bash
+# Jira Configuration
+JIRA_URL=https://jira.company.com
+JIRA_PAT_TOKEN=your-jira-personal-access-token
 
-### Security Warning When Using LLMs
+# Confluence Configuration
+CONFLUENCE_URL=https://confluence.company.com
+CONFLUENCE_PAT_TOKEN=your-confluence-personal-access-token
+```
 
-- **Security risk**: If you or the AI in Cline ask an LLM to read/analyze the `cline_mcp_settings.json` file, **your Atlassian token will be sent to a third-party server** (OpenAI, Anthropic, etc.).
-- **How it works**:
-  - Cline does **NOT** automatically send config files to the cloud
-  - However, if you ask to "check the config file" or similar, the file content (including API token) will be sent to the LLM endpoint for processing
-- **Safety recommendations**:
-  - Do not ask the LLM to read/check config files containing tokens
-  - If you need support, remove sensitive information before sending to the LLM
-  - Treat your API token like a password – never share it in LLM prompts
+#### Option 2: Legacy Single Configuration
 
-> **Important**: If you do not ask the LLM to read the config file, your API token will only be used locally and will not be sent anywhere.
+Use the same credentials for both Jira and Confluence:
+
+```bash
+# Works for both services (Cloud or Server/DC)
+ATLASSIAN_SITE_NAME=your-site.atlassian.net
+ATLASSIAN_USER_EMAIL=your-email@example.com
+ATLASSIAN_API_TOKEN=your-api-token
+```
+
+### Cloud Authentication
+
+For **Atlassian Cloud** deployments, you need an API token:
+
+1. **Go to Atlassian Account Settings**: https://id.atlassian.com/manage-profile/security/api-tokens
+2. **Create API Token**: Click "Create API token"
+3. **Copy the token**: Save it securely (you won't see it again)
+
+**Environment Variables:**
+```bash
+# Single configuration
+ATLASSIAN_SITE_NAME=your-site.atlassian.net
+ATLASSIAN_USER_EMAIL=your-email@company.com
+ATLASSIAN_API_TOKEN=your-api-token
+
+# Or separate configuration
+JIRA_URL=your-site.atlassian.net
+JIRA_USER_EMAIL=your-email@company.com
+JIRA_API_TOKEN=your-api-token
+
+CONFLUENCE_URL=your-site.atlassian.net
+CONFLUENCE_USER_EMAIL=your-email@company.com
+CONFLUENCE_API_TOKEN=your-api-token
+```
+
+### Server/Data Center Authentication
+
+For **Server/Data Center** deployments, you have two options:
+
+#### Option A: Personal Access Token (Recommended)
+
+1. **Log into your Atlassian instance**
+2. **Go to Profile → Personal Access Tokens**
+3. **Create token** with appropriate permissions
+4. **Copy the token** and configure:
+
+```bash
+# Separate configuration (recommended)
+JIRA_URL=https://jira.company.com
+JIRA_PAT_TOKEN=your-jira-personal-access-token
+
+CONFLUENCE_URL=https://confluence.company.com
+CONFLUENCE_PAT_TOKEN=your-confluence-personal-access-token
+
+# Or single configuration
+ATLASSIAN_SITE_NAME=https://jira.company.com
+ATLASSIAN_PAT_TOKEN=your-personal-access-token
+```
+
+#### Option B: Basic Authentication (Fallback)
+
+If PAT tokens are not available:
+
+```bash
+# Separate configuration
+JIRA_URL=https://jira.company.com
+JIRA_USER_EMAIL=your-username
+JIRA_API_TOKEN=your-password
+
+CONFLUENCE_URL=https://confluence.company.com
+CONFLUENCE_USER_EMAIL=your-username
+CONFLUENCE_API_TOKEN=your-password
+
+# Or single configuration
+ATLASSIAN_SITE_NAME=https://jira.company.com
+ATLASSIAN_USER_EMAIL=your-username
+ATLASSIAN_API_TOKEN=your-password
+```
+
+### Configuration Examples
+
+#### Example 1: Cloud with Single Configuration
+```json
+{
+  "mcpServers": {
+    "phuc-nt/mcp-atlassian-server": {
+      "disabled": false,
+      "timeout": 60,
+      "command": "node",
+      "args": [
+        "/path/to/mcp-atlassian-server/dist/index.js"
+      ],
+      "env": {
+        "ATLASSIAN_SITE_NAME": "company.atlassian.net",
+        "ATLASSIAN_USER_EMAIL": "user@company.com",
+        "ATLASSIAN_API_TOKEN": "your-cloud-api-token"
+      },
+      "transportType": "stdio"
+    }
+  }
+}
+```
+
+#### Example 2: Server/Data Center with Separate Configuration
+```json
+{
+  "mcpServers": {
+    "phuc-nt/mcp-atlassian-server": {
+      "disabled": false,
+      "timeout": 60,
+      "command": "node",
+      "args": [
+        "/path/to/mcp-atlassian-server/dist/index.js"
+      ],
+      "env": {
+        "JIRA_URL": "https://jira.company.com",
+        "JIRA_PAT_TOKEN": "your-jira-pat-token",
+        "CONFLUENCE_URL": "https://confluence.company.com",
+        "CONFLUENCE_PAT_TOKEN": "your-confluence-pat-token"
+      },
+      "transportType": "stdio"
+    }
+  }
+}
+```
+
+#### Example 3: Mixed Environment (Cloud Jira + Server Confluence)
+```json
+{
+  "mcpServers": {
+    "phuc-nt/mcp-atlassian-server": {
+      "disabled": false,
+      "timeout": 60,
+      "command": "node",
+      "args": [
+        "/path/to/mcp-atlassian-server/dist/index.js"
+      ],
+      "env": {
+        "JIRA_URL": "company.atlassian.net",
+        "JIRA_USER_EMAIL": "user@company.com",
+        "JIRA_API_TOKEN": "your-cloud-api-token",
+        "CONFLUENCE_URL": "https://confluence.company.com",
+        "CONFLUENCE_PAT_TOKEN": "your-server-pat-token"
+      },
+      "transportType": "stdio"
+    }
+  }
+}
+```
+
+### Security Recommendations
+
+1. **Use PAT tokens** for Server/Data Center deployments when possible
+2. **Separate configurations** provide better security isolation
+3. **Rotate tokens regularly** and use tokens with minimal required permissions
+4. **For development only**: Set `NODE_TLS_REJECT_UNAUTHORIZED=0` for self-signed certificates
+5. **Never commit tokens** to version control
 
 ## Documentation Resources
 

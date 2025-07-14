@@ -6,13 +6,13 @@
 
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Logger } from '../../utils/logger.js';
-import { getConfluenceSpacesV2, getConfluenceSpaceV2, getConfluencePagesWithFilters } from '../../utils/confluence-resource-api.js';
 import { spacesListSchema, spaceSchema, pagesListSchema } from '../../schemas/confluence.js';
+import { getConfluenceSpacesV2, getConfluenceSpaceV2, getConfluencePagesWithFilters } from '../../utils/confluence-resource-api.js';
 import { Config, Resources } from '../../utils/mcp-helpers.js';
 import { getDeploymentType } from '../../utils/deployment-detector.js';
 import { normalizeUserData } from '../../utils/user-id-helper.js';
 
-const logger = Logger.getLogger('ConfluenceSpaceResources');
+const logger = Logger.getLogger('ConfluenceResource:Spaces');
 
 /**
  * Format space data to include deployment type and normalize user data
@@ -49,6 +49,26 @@ function formatSpaceListData(spaces: any[], baseUrl: string): any[] {
 }
 
 /**
+ * Get Confluence configuration from context or environment
+ */
+function getConfluenceConfig(extra?: any): Config.EnhancedAtlassianConfig {
+  if (extra?.context?.confluenceConfig) {
+    return extra.context.confluenceConfig;
+  }
+  
+  // Try separate config first
+  const confluenceConfig = Config.getConfluenceConfigFromEnv();
+  if (confluenceConfig) {
+    return confluenceConfig;
+  }
+  
+  // Fallback to legacy config
+  const legacyConfig = Config.getAtlassianConfigFromEnv();
+  logger.warn('Using legacy configuration for Confluence. Consider setting CONFLUENCE_URL and CONFLUENCE_PAT_TOKEN for better security.');
+  return legacyConfig;
+}
+
+/**
  * Register Confluence space-related resources
  * @param server MCP Server instance
  */
@@ -72,8 +92,8 @@ export function registerSpaceResources(server: McpServer) {
         };
       }
     }),
-    async (uri, params, _extra) => {
-      const config = Config.getAtlassianConfigFromEnv();
+    async (uri, params, extra) => {
+      const config = getConfluenceConfig(extra);
       const limit = params?.limit ? parseInt(Array.isArray(params.limit) ? params.limit[0] : params.limit, 10) : 25;
       const cursor = params?.cursor ? (Array.isArray(params.cursor) ? params.cursor[0] : params.cursor) : undefined;
       logger.info(`Getting Confluence spaces list (v2): cursor=${cursor}, limit=${limit}`);
@@ -93,7 +113,6 @@ export function registerSpaceResources(server: McpServer) {
           next: hasMore && nextCursor ? `${uriString}?cursor=${encodeURIComponent(nextCursor)}&limit=${limit}` : undefined
         }
       };
-      // Chuẩn hóa trả về
       return Resources.createStandardResource(
         uriString,
         formattedSpaces,
@@ -107,7 +126,7 @@ export function registerSpaceResources(server: McpServer) {
     }
   );
 
-  // Resource: Space details (API v2, mapping id)
+  // Resource: Space details (API v2)
   server.resource(
     'confluence-space-details',
     new ResourceTemplate('confluence://spaces/{spaceId}', {
@@ -116,19 +135,17 @@ export function registerSpaceResources(server: McpServer) {
           {
             uri: 'confluence://spaces/{spaceId}',
             name: 'Confluence Space Details',
-            description: 'Get details for a specific Confluence space by id. Replace {spaceId} với id số của space (ví dụ: 19464200).',
+            description: 'Get details for a specific Confluence space. Replace {spaceId} with the space ID.',
             mimeType: 'application/json'
           }
         ]
       })
     }),
-    async (uri, params, _extra) => {
-      const config = Config.getAtlassianConfigFromEnv();
+    async (uri, params, extra) => {
+      const config = getConfluenceConfig(extra);
       let normalizedSpaceId = Array.isArray(params.spaceId) ? params.spaceId[0] : params.spaceId;
       if (!normalizedSpaceId) throw new Error('Missing spaceId in URI');
-      if (!/^\d+$/.test(normalizedSpaceId)) throw new Error('spaceId must be a number');
-      logger.info(`Getting details for Confluence space (v2) by id: ${normalizedSpaceId}`);
-      // Lấy thông tin space qua API helper (giả sử getConfluenceSpaceV2 hỗ trợ lookup theo id)
+      logger.info(`Getting details for Confluence space (v2): ${normalizedSpaceId}`);
       const space = await getConfluenceSpaceV2(config, normalizedSpaceId);
       const formattedSpace = formatSpaceData(space, config.baseUrl);
       const uriString = typeof uri === 'string' ? uri : uri.href;
@@ -140,7 +157,7 @@ export function registerSpaceResources(server: McpServer) {
         1,
         1,
         0,
-        undefined
+        `${config.baseUrl}/wiki/spaces/${space.key}`
       );
     }
   );
@@ -160,8 +177,8 @@ export function registerSpaceResources(server: McpServer) {
         ]
       })
     }),
-    async (uri, params, _extra) => {
-      const config = Config.getAtlassianConfigFromEnv();
+    async (uri, params, extra) => {
+      const config = getConfluenceConfig(extra);
       let normalizedSpaceId = Array.isArray(params.spaceId) ? params.spaceId[0] : params.spaceId;
       if (!normalizedSpaceId) throw new Error('Missing spaceId in URI');
       if (!/^\d+$/.test(normalizedSpaceId)) throw new Error('spaceId must be a number');
@@ -190,4 +207,6 @@ export function registerSpaceResources(server: McpServer) {
       );
     }
   );
+
+  logger.info('Confluence space resources registered successfully');
 }

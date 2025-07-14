@@ -5,6 +5,7 @@ import { registerAllTools } from './tools/index.js';
 import { registerAllResources } from './resources/index.js';
 import { Logger } from './utils/logger.js';
 import { AtlassianConfig } from './utils/atlassian-api-base.js';
+import { Config } from './utils/mcp-helpers.js';
 
 // Load environment variables
 dotenv.config();
@@ -12,24 +13,33 @@ dotenv.config();
 // Initialize logger
 const logger = Logger.getLogger('MCP:Server');
 
-// Get Atlassian config from environment variables
-const ATLASSIAN_SITE_NAME = process.env.ATLASSIAN_SITE_NAME;
-const ATLASSIAN_USER_EMAIL = process.env.ATLASSIAN_USER_EMAIL;
-const ATLASSIAN_API_TOKEN = process.env.ATLASSIAN_API_TOKEN;
+// Get separate configurations for Jira and Confluence
+const separateConfigs = Config.getSeparateConfigsFromEnv();
 
-if (!ATLASSIAN_SITE_NAME || !ATLASSIAN_USER_EMAIL || !ATLASSIAN_API_TOKEN) {
-  logger.error('Missing Atlassian credentials in environment variables');
-  process.exit(1);
+// Fallback to legacy single config if separate configs are not available
+let atlassianConfig: Config.EnhancedAtlassianConfig | null = null;
+if (!separateConfigs.jira && !separateConfigs.confluence) {
+  try {
+    atlassianConfig = Config.getAtlassianConfigFromEnv();
+    logger.info('Using legacy single configuration for both Jira and Confluence');
+  } catch (error) {
+    logger.error('Failed to get Atlassian configuration:', error);
+    process.exit(1);
+  }
+} else {
+  if (separateConfigs.jira) {
+    logger.info(`Jira configuration loaded: ${separateConfigs.jira.baseUrl} (${separateConfigs.jira.deploymentType})`);
+  }
+  if (separateConfigs.confluence) {
+    logger.info(`Confluence configuration loaded: ${separateConfigs.confluence.baseUrl} (${separateConfigs.confluence.deploymentType})`);
+  }
 }
 
-// Create Atlassian config
-const atlassianConfig: AtlassianConfig = {
-  baseUrl: ATLASSIAN_SITE_NAME.includes('.atlassian.net') 
-    ? `https://${ATLASSIAN_SITE_NAME}` 
-    : ATLASSIAN_SITE_NAME,
-  email: ATLASSIAN_USER_EMAIL,
-  apiToken: ATLASSIAN_API_TOKEN
-};
+// Validate that at least one service is configured
+if (!atlassianConfig && !separateConfigs.jira && !separateConfigs.confluence) {
+  logger.error('No Atlassian services configured. Please set environment variables for Jira and/or Confluence.');
+  process.exit(1);
+}
 
 logger.info('Initializing MCP Atlassian Server...');
 
@@ -74,8 +84,11 @@ const serverProxy = new Proxy(server, {
               if (!extra) extra = {};
               if (!extra.context) extra.context = {};
               
-              // Add Atlassian config to context
+              // Add configs to context
               extra.context.atlassianConfig = atlassianConfig;
+              extra.context.jiraConfig = separateConfigs.jira;
+              extra.context.confluenceConfig = separateConfigs.confluence;
+              extra.context.separateConfigs = separateConfigs;
               
               // Call the original handler with the enriched context
               return await handler(uri, params, extra);
@@ -98,30 +111,50 @@ const serverProxy = new Proxy(server, {
 });
 
 // Log config info for debugging
-logger.info(`Atlassian config available: ${JSON.stringify(atlassianConfig, null, 2)}`);
+logger.info(`Separate configs available: Jira=${!!separateConfigs.jira}, Confluence=${!!separateConfigs.confluence}`);
+if (atlassianConfig) {
+  logger.info(`Legacy config available: ${atlassianConfig.baseUrl}`);
+}
 
-// Tool server proxy for consistent handling
-const toolServerProxy: any = {
-  tool: (name: string, description: string, schema: any, handler: any) => {
-    // Register tool with a context-aware handler wrapper
-    server.tool(name, description, schema, async (params: any, context: any) => {
-      // Add Atlassian config to context
-      context.atlassianConfig = atlassianConfig;
-      
-      logger.debug(`Tool ${name} called with context keys: [${Object.keys(context)}]`);
-      
-      try {
-        return await handler(params, context);
-      } catch (error) {
-        logger.error(`Error in tool handler for ${name}:`, error);
-        return {
-          content: [{ type: 'text', text: `Error in tool handler: ${error instanceof Error ? error.message : String(error)}` }],
-          isError: true
-        };
-      }
-    });
+// Create a context-aware server proxy for tools
+const toolServerProxy = new Proxy(server, {
+  get(target, prop) {
+    if (prop === 'tool') {
+      // Override the tool method to inject context
+      return (name: string, definition: any, handler: any) => {
+        try {
+          // Create a context-aware handler wrapper
+          const contextAwareHandler = async (params: any, extra: any) => {
+            try {
+              // Ensure extra has context
+              if (!extra) extra = {};
+              if (!extra.context) extra.context = {};
+              
+              // Add configs to context
+              extra.context.atlassianConfig = atlassianConfig;
+              extra.context.jiraConfig = separateConfigs.jira;
+              extra.context.confluenceConfig = separateConfigs.confluence;
+              extra.context.separateConfigs = separateConfigs;
+              
+              // Call the original handler with the enriched context
+              return await handler(params, extra);
+            } catch (error) {
+              logger.error(`Error in tool handler for ${name}:`, error);
+              throw error;
+            }
+          };
+          
+          // Register the tool with the context-aware handler
+          return target.tool(name, definition, contextAwareHandler);
+        } catch (error) {
+          logger.error(`Error registering tool: ${error}`);
+          throw error;
+        }
+      };
+    }
+    return Reflect.get(target, prop);
   }
-};
+});
 
 // Register all tools
 logger.info('Registering all MCP Tools...');
@@ -142,7 +175,17 @@ async function startServer() {
     // Print startup info
     logger.info(`MCP Server Name: ${process.env.MCP_SERVER_NAME || 'phuc-nt/mcp-atlassian-server'}`);
     logger.info(`MCP Server Version: ${process.env.MCP_SERVER_VERSION || '1.0.0'}`);
-    logger.info(`Connected to Atlassian site: ${ATLASSIAN_SITE_NAME}`);
+    
+    // Log configured sites
+    if (separateConfigs.jira) {
+      logger.info(`Connected to Jira: ${separateConfigs.jira.baseUrl}`);
+    }
+    if (separateConfigs.confluence) {
+      logger.info(`Connected to Confluence: ${separateConfigs.confluence.baseUrl}`);
+    }
+    if (atlassianConfig) {
+      logger.info(`Connected to Atlassian site: ${atlassianConfig.baseUrl}`);
+    }
     
     logger.info('Registered tools:');
     // Liệt kê tất cả các tool đã đăng ký

@@ -12,6 +12,26 @@ import { normalizeUserData } from '../../utils/user-id-helper.js';
 const logger = Logger.getLogger('JiraResource:Projects');
 
 /**
+ * Get Jira configuration from context or environment
+ */
+function getJiraConfig(extra?: any): Config.EnhancedAtlassianConfig {
+  if (extra?.context?.jiraConfig) {
+    return extra.context.jiraConfig;
+  }
+  
+  // Try separate config first
+  const jiraConfig = Config.getJiraConfigFromEnv();
+  if (jiraConfig) {
+    return jiraConfig;
+  }
+  
+  // Fallback to legacy config
+  const legacyConfig = Config.getAtlassianConfigFromEnv();
+  logger.warn('Using legacy configuration for Jira. Consider setting JIRA_URL and JIRA_PAT_TOKEN for better security.');
+  return legacyConfig;
+}
+
+/**
  * Get authentication headers based on deployment type
  */
 function getAuthHeaders(config: AtlassianConfig): Record<string, string> {
@@ -131,11 +151,11 @@ export function registerProjectResources(server: McpServer) {
         };
       }
     }),
-    async (uri, _params, _extra) => {
+    async (uri, _params, extra) => {
       logger.info('Getting list of Jira projects');
       try {
-        // Get config from environment
-        const config = Config.getAtlassianConfigFromEnv();
+        // Get config from context or environment
+        const config = getJiraConfig(extra);
         
         // Get the list of projects from Jira API
         const projects = await getProjects(config);
@@ -187,10 +207,10 @@ export function registerProjectResources(server: McpServer) {
         ]
       })
     }),
-    async (uri, params, _extra) => {
+    async (uri, params, extra) => {
       try {
-        // Get config from environment
-        const config = Config.getAtlassianConfigFromEnv();
+        // Get config from context or environment
+        const config = getJiraConfig(extra);
         
         // Get projectKey from URI pattern
         let normalizedProjectKey = '';
@@ -247,10 +267,10 @@ export function registerProjectResources(server: McpServer) {
         ]
       })
     }),
-    async (uri, params, _extra) => {
+    async (uri, params, extra) => {
       try {
-        // Get config from environment
-        const config = Config.getAtlassianConfigFromEnv();
+        // Get config from context or environment
+        const config = getJiraConfig(extra);
         
         let normalizedProjectKey = '';
         if (params && 'projectKey' in params) {

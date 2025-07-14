@@ -23,9 +23,19 @@ export namespace Config {
   }
 
   /**
+   * Separate configuration for Jira and Confluence
+   */
+  export interface SeparateAtlassianConfig {
+    jira?: EnhancedAtlassianConfig;
+    confluence?: EnhancedAtlassianConfig;
+  }
+
+  /**
    * Get Atlassian configuration from environment variables with deployment detection
+   * @deprecated Use getJiraConfigFromEnv() and getConfluenceConfigFromEnv() instead
    */
   export function getAtlassianConfigFromEnv(): EnhancedAtlassianConfig {
+    // Fallback to legacy single-config approach
     const ATLASSIAN_SITE_NAME = process.env.ATLASSIAN_SITE_NAME || '';
     const ATLASSIAN_USER_EMAIL = process.env.ATLASSIAN_USER_EMAIL || '';
     const ATLASSIAN_API_TOKEN = process.env.ATLASSIAN_API_TOKEN || '';
@@ -89,6 +99,152 @@ export namespace Config {
   }
 
   /**
+   * Get Jira configuration from environment variables
+   */
+  export function getJiraConfigFromEnv(): EnhancedAtlassianConfig | null {
+    const JIRA_URL = process.env.JIRA_URL || process.env.ATLASSIAN_SITE_NAME || '';
+    const JIRA_USER_EMAIL = process.env.JIRA_USER_EMAIL || process.env.ATLASSIAN_USER_EMAIL || '';
+    const JIRA_API_TOKEN = process.env.JIRA_API_TOKEN || process.env.ATLASSIAN_API_TOKEN || '';
+    const JIRA_PAT_TOKEN = process.env.JIRA_PAT_TOKEN || process.env.ATLASSIAN_PAT_TOKEN || '';
+    const JIRA_DEPLOYMENT_TYPE = process.env.JIRA_DEPLOYMENT_TYPE as 'cloud' | 'server' | undefined;
+
+    if (!JIRA_URL) {
+      logger.warn('No Jira URL found in environment variables (JIRA_URL or ATLASSIAN_SITE_NAME)');
+      return null;
+    }
+
+    // Normalize and validate the URL
+    const baseUrl = JIRA_URL.includes('.atlassian.net') 
+      ? `https://${JIRA_URL}` 
+      : JIRA_URL;
+
+    const validation = validateAtlassianUrl(baseUrl);
+    if (!validation.isValid) {
+      logger.error('Invalid Jira URL:', validation.error);
+      throw new Error(`Invalid Jira URL: ${validation.error}`);
+    }
+
+    // Determine deployment type
+    const deploymentType = JIRA_DEPLOYMENT_TYPE || getDeploymentType(baseUrl);
+
+    // Validate credentials based on deployment type
+    if (deploymentType === 'cloud') {
+      if (!JIRA_USER_EMAIL || !JIRA_API_TOKEN) {
+        logger.error('Missing credentials for Jira Cloud deployment (JIRA_USER_EMAIL, JIRA_API_TOKEN)');
+        throw new Error('Missing credentials for Jira Cloud deployment');
+      }
+      return {
+        baseUrl,
+        email: JIRA_USER_EMAIL,
+        apiToken: JIRA_API_TOKEN,
+        deploymentType: 'cloud'
+      };
+    } else {
+      // Server/Data Center deployment
+      if (JIRA_PAT_TOKEN) {
+        // Personal Access Token (preferred for Server/DC)
+        return {
+          baseUrl,
+          email: '', // Not required for PAT
+          apiToken: JIRA_PAT_TOKEN,
+          deploymentType: 'server'
+        };
+      } else if (JIRA_USER_EMAIL && JIRA_API_TOKEN) {
+        // Basic Auth fallback for Server/DC
+        return {
+          baseUrl,
+          email: JIRA_USER_EMAIL,
+          apiToken: JIRA_API_TOKEN,
+          deploymentType: 'server'
+        };
+      } else {
+        logger.error('Missing credentials for Jira Server/DC deployment (JIRA_PAT_TOKEN or JIRA_USER_EMAIL+JIRA_API_TOKEN)');
+        throw new Error('Missing credentials for Jira Server/DC deployment');
+      }
+    }
+  }
+
+  /**
+   * Get Confluence configuration from environment variables
+   */
+  export function getConfluenceConfigFromEnv(): EnhancedAtlassianConfig | null {
+    const CONFLUENCE_URL = process.env.CONFLUENCE_URL || process.env.ATLASSIAN_SITE_NAME || '';
+    const CONFLUENCE_USER_EMAIL = process.env.CONFLUENCE_USER_EMAIL || process.env.ATLASSIAN_USER_EMAIL || '';
+    const CONFLUENCE_API_TOKEN = process.env.CONFLUENCE_API_TOKEN || process.env.ATLASSIAN_API_TOKEN || '';
+    const CONFLUENCE_PAT_TOKEN = process.env.CONFLUENCE_PAT_TOKEN || process.env.ATLASSIAN_PAT_TOKEN || '';
+    const CONFLUENCE_DEPLOYMENT_TYPE = process.env.CONFLUENCE_DEPLOYMENT_TYPE as 'cloud' | 'server' | undefined;
+
+    if (!CONFLUENCE_URL) {
+      logger.warn('No Confluence URL found in environment variables (CONFLUENCE_URL or ATLASSIAN_SITE_NAME)');
+      return null;
+    }
+
+    // Normalize and validate the URL
+    let baseUrl = CONFLUENCE_URL;
+    if (CONFLUENCE_URL.includes('.atlassian.net')) {
+      baseUrl = `https://${CONFLUENCE_URL}`;
+    }
+
+    const validation = validateAtlassianUrl(baseUrl);
+    if (!validation.isValid) {
+      logger.error('Invalid Confluence URL:', validation.error);
+      throw new Error(`Invalid Confluence URL: ${validation.error}`);
+    }
+
+    // Determine deployment type
+    const deploymentType = CONFLUENCE_DEPLOYMENT_TYPE || getDeploymentType(baseUrl);
+
+    // Validate credentials based on deployment type
+    if (deploymentType === 'cloud') {
+      if (!CONFLUENCE_USER_EMAIL || !CONFLUENCE_API_TOKEN) {
+        logger.error('Missing credentials for Confluence Cloud deployment (CONFLUENCE_USER_EMAIL, CONFLUENCE_API_TOKEN)');
+        throw new Error('Missing credentials for Confluence Cloud deployment');
+      }
+      return {
+        baseUrl,
+        email: CONFLUENCE_USER_EMAIL,
+        apiToken: CONFLUENCE_API_TOKEN,
+        deploymentType: 'cloud'
+      };
+    } else {
+      // Server/Data Center deployment
+      if (CONFLUENCE_PAT_TOKEN) {
+        // Personal Access Token (preferred for Server/DC)
+        return {
+          baseUrl,
+          email: '', // Not required for PAT
+          apiToken: CONFLUENCE_PAT_TOKEN,
+          deploymentType: 'server'
+        };
+      } else if (CONFLUENCE_USER_EMAIL && CONFLUENCE_API_TOKEN) {
+        // Basic Auth fallback for Server/DC
+        return {
+          baseUrl,
+          email: CONFLUENCE_USER_EMAIL,
+          apiToken: CONFLUENCE_API_TOKEN,
+          deploymentType: 'server'
+        };
+      } else {
+        logger.error('Missing credentials for Confluence Server/DC deployment (CONFLUENCE_PAT_TOKEN or CONFLUENCE_USER_EMAIL+CONFLUENCE_API_TOKEN)');
+        throw new Error('Missing credentials for Confluence Server/DC deployment');
+      }
+    }
+  }
+
+  /**
+   * Get separate configurations for Jira and Confluence
+   */
+  export function getSeparateConfigsFromEnv(): SeparateAtlassianConfig {
+    const jiraConfig = getJiraConfigFromEnv();
+    const confluenceConfig = getConfluenceConfigFromEnv();
+
+    return {
+      jira: jiraConfig || undefined,
+      confluence: confluenceConfig || undefined
+    };
+  }
+
+  /**
    * Helper to get Atlassian config from context or environment
    */
   export function getConfigFromContextOrEnv(context: any): EnhancedAtlassianConfig {
@@ -96,6 +252,26 @@ export namespace Config {
       return context.atlassianConfig;
     }
     return getAtlassianConfigFromEnv();
+  }
+
+  /**
+   * Helper to get Jira config from context or environment
+   */
+  export function getJiraConfigFromContextOrEnv(context: any): EnhancedAtlassianConfig | null {
+    if (context?.jiraConfig) {
+      return context.jiraConfig;
+    }
+    return getJiraConfigFromEnv();
+  }
+
+  /**
+   * Helper to get Confluence config from context or environment
+   */
+  export function getConfluenceConfigFromContextOrEnv(context: any): EnhancedAtlassianConfig | null {
+    if (context?.confluenceConfig) {
+      return context.confluenceConfig;
+    }
+    return getConfluenceConfigFromEnv();
   }
 
   /**
