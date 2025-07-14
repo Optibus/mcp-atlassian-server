@@ -5,7 +5,7 @@
  * This script validates that the server can handle separate configurations correctly
  */
 
-import { Config } from '../../src/utils/mcp-helpers.js';
+import { Config } from '../../dist/utils/mcp-helpers.js';
 
 console.log('🧪 Testing Separate Configuration Support');
 console.log('========================================');
@@ -40,7 +40,7 @@ try {
   console.log(`      - Confluence: ${separateConfigs.confluence ? '✅ Configured' : '❌ Not configured'}`);
 
 } catch (error) {
-  console.error('   ❌ Error testing configuration:', error);
+  console.error('   ❌ Error testing configuration:', error.message);
 }
 
 // Test 2: Test environment variable patterns
@@ -98,7 +98,7 @@ try {
   }
 
 } catch (error) {
-  console.error('   ❌ Error testing configuration priority:', error);
+  console.error('   ❌ Error testing configuration priority:', error.message);
 }
 
 // Test 4: Test configuration validation
@@ -118,7 +118,7 @@ try {
   }
 
 } catch (error) {
-  console.error('   ❌ Error testing configuration validation:', error);
+  console.error('   ❌ Error testing configuration validation:', error.message);
 }
 
 // Test 5: Test backward compatibility
@@ -136,7 +136,7 @@ try {
   }
 
 } catch (error) {
-  console.error('   ❌ Error testing backward compatibility:', error);
+  console.error('   ❌ Error testing backward compatibility:', error.message);
 }
 
 console.log('\n📋 Configuration Summary:');
