@@ -29,38 +29,36 @@ export const addGadgetToDashboardSchema = addGadgetToDashboardBaseSchema.refine(
 type AddGadgetToDashboardParams = z.infer<typeof addGadgetToDashboardBaseSchema>;
 
 async function addGadgetToDashboardToolImpl(params: AddGadgetToDashboardParams, context: any) {
-  if (!!params.moduleKey === !!params.uri) {
-    return {
-      success: false,
-      error: 'You must provide either moduleKey or uri, but not both.'
-    };
-  }
-  const config = Config.getConfigFromContextOrEnv(context);
+  const config = Config.getJiraConfigFromContextOrEnv(context) || Config.getConfigFromContextOrEnv(context);
   const deploymentType = getDeploymentType(config.baseUrl);
   
   logger.info(`Adding gadget to dashboard ${params.dashboardId} (${deploymentType})`);
-  const { dashboardId, moduleKey, uri, ...rest } = params;
-  let gadgetUri = uri;
-  if (!gadgetUri && moduleKey) {
-    return {
-      success: false,
-      error: 'Jira Cloud API chỉ hỗ trợ thêm gadget qua uri. Vui lòng cung cấp uri hợp lệ.'
-    };
+  
+  // Build gadget data object
+  const gadgetData: any = {
+    color: params.color,
+    position: params.position
+  };
+  
+  if (params.moduleKey) {
+    gadgetData.moduleKey = params.moduleKey;
+  } else if (params.uri) {
+    gadgetData.uri = params.uri;
   }
-  if (!gadgetUri) {
-    return {
-      success: false,
-      error: 'Thiếu uri gadget.'
-    };
+  
+  if (params.title) {
+    gadgetData.title = params.title;
   }
-  const data = { uri: gadgetUri, ...rest };
-  const result = await addGadgetToDashboard(config, dashboardId, data);
+  
+  const result = await addGadgetToDashboard(config, params.dashboardId, gadgetData);
+  
   return {
     success: true,
-    dashboardId,
-    uri: gadgetUri,
-    ...rest,
-    result
+    dashboardId: params.dashboardId,
+    gadgetId: result.id,
+    title: result.title,
+    color: params.color,
+    position: params.position
   };
 }
 

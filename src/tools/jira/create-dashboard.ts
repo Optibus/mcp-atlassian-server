@@ -16,7 +16,7 @@ export const createDashboardSchema = z.object({
 type CreateDashboardParams = z.infer<typeof createDashboardSchema>;
 
 async function createDashboardToolImpl(params: CreateDashboardParams, context: any) {
-  const config = Config.getConfigFromContextOrEnv(context);
+  const config = Config.getJiraConfigFromContextOrEnv(context) || Config.getConfigFromContextOrEnv(context);
   const deploymentType = getDeploymentType(config.baseUrl);
   
   logger.info(`Creating dashboard: ${params.name} (${deploymentType})`);

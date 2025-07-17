@@ -15,17 +15,16 @@ export const removeGadgetFromDashboardSchema = z.object({
 type RemoveGadgetFromDashboardParams = z.infer<typeof removeGadgetFromDashboardSchema>;
 
 async function removeGadgetFromDashboardToolImpl(params: RemoveGadgetFromDashboardParams, context: any) {
-  const config = Config.getConfigFromContextOrEnv(context);
+  const config = Config.getJiraConfigFromContextOrEnv(context) || Config.getConfigFromContextOrEnv(context);
   const deploymentType = getDeploymentType(config.baseUrl);
-  const { dashboardId, gadgetId } = params;
   
-  logger.info(`Removing gadget ${gadgetId} from dashboard ${dashboardId} (${deploymentType})`);
-  const result = await removeGadgetFromDashboard(config, dashboardId, gadgetId);
+  logger.info(`Removing gadget ${params.gadgetId} from dashboard ${params.dashboardId} (${deploymentType})`);
+  const result = await removeGadgetFromDashboard(config, params.dashboardId, params.gadgetId);
   return {
     success: true,
-    dashboardId,
-    gadgetId,
-    result
+    dashboardId: params.dashboardId,
+    gadgetId: params.gadgetId,
+    message: 'Gadget removed successfully'
   };
 }
 

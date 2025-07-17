@@ -6,7 +6,7 @@ import { Logger } from '../../utils/logger.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Tools, Config } from '../../utils/mcp-helpers.js';
 import { getDeploymentType } from '../../utils/deployment-detector.js';
-import { validateUserIdentifier } from '../../utils/user-id-helper.js';
+import { formatUserForAssignment } from '../../utils/user-id-helper.js';
 
 // Initialize logger
 const logger = Logger.getLogger('JiraTools:assignIssue');
@@ -22,44 +22,24 @@ export const assignIssueSchema = z.object({
 type AssignIssueParams = z.infer<typeof assignIssueSchema>;
 
 async function assignIssueToolImpl(params: AssignIssueParams, context: any) {
-  const config: AtlassianConfig = Config.getConfigFromContextOrEnv(context);
+  const config: AtlassianConfig = Config.getJiraConfigFromContextOrEnv(context) || Config.getConfigFromContextOrEnv(context);
   const deploymentType = getDeploymentType(config.baseUrl);
   
-  // Determine the user identifier based on deployment type and provided params
-  let userIdentifier: string | null = null;
+  // Format assignee based on deployment type
+  const formattedAssignee = params.assignee ? formatUserForAssignment(params.assignee, deploymentType) : null;
   
-  if (params.assignee) {
-    userIdentifier = params.assignee;
-  } else if (params.accountId) {
-    userIdentifier = params.accountId;
-  } else if (params.username) {
-    userIdentifier = params.username;
-  }
+  logger.info(`Assigning issue ${params.issueIdOrKey} to ${params.assignee ? params.assignee : 'unassigned'} (${deploymentType})`);
   
-  // Validate user identifier format if provided
-  if (userIdentifier) {
-    const validation = validateUserIdentifier(userIdentifier, deploymentType);
-    if (!validation.isValid) {
-      throw new Error(`Invalid user identifier for ${deploymentType}: ${validation.error}`);
-    }
-  }
+  // Extract accountId from formatted assignee
+  const accountId = formattedAssignee?.accountId || null;
   
-  logger.info(`Assigning issue ${params.issueIdOrKey} to ${userIdentifier || 'no one'} (${deploymentType})`);
-  
-  const result = await assignIssue(
-    config,
-    params.issueIdOrKey,
-    userIdentifier
-  );
+  const result = await assignIssue(config, params.issueIdOrKey, accountId);
   
   return {
     issueIdOrKey: params.issueIdOrKey,
-    success: result.success,
-    assignee: userIdentifier,
-    deploymentType: deploymentType,
-    message: userIdentifier
-      ? `Issue ${params.issueIdOrKey} assigned to user: ${userIdentifier} (${deploymentType})`
-      : `Issue ${params.issueIdOrKey} unassigned`
+    success: true,
+    assignee: params.assignee || 'unassigned',
+    message: `Issue ${params.assignee ? 'assigned successfully' : 'unassigned successfully'}`
   };
 }
 

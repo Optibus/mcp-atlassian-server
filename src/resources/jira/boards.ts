@@ -11,7 +11,7 @@ import { Logger } from '../../utils/logger.js';
 import { Config, Resources } from '../../utils/mcp-helpers.js';
 import { getDeploymentType } from '../../utils/deployment-detector.js';
 
-const logger = Logger.getLogger('JiraBoardResources');
+const logger = Logger.getLogger('JiraResources:boards');
 
 /**
  * Get authentication headers based on deployment type
@@ -65,6 +65,22 @@ function formatBoardListData(boards: any[], baseUrl: string): any[] {
 }
 
 /**
+ * Get the appropriate Jira configuration (separate or legacy)
+ */
+function getJiraConfig(): Config.EnhancedAtlassianConfig {
+  // Try to get separate Jira config first
+  const jiraConfig = Config.getJiraConfigFromEnv();
+  if (jiraConfig) {
+    return jiraConfig;
+  }
+  
+  // Fallback to legacy config
+  const legacyConfig = Config.getAtlassianConfigFromEnv();
+  logger.warn('Using legacy configuration for Jira boards. Consider setting JIRA_URL and JIRA_PAT_TOKEN for better security.');
+  return legacyConfig;
+}
+
+/**
  * Register all Jira board resources with MCP Server
  * @param server MCP Server instance
  */
@@ -90,7 +106,7 @@ export function registerBoardResources(server: McpServer) {
     }),
     async (uri, params, _extra) => {
       try {
-        const config = Config.getAtlassianConfigFromEnv();
+        const config = getJiraConfig();
         const { limit, offset } = Resources.extractPagingParams(params);
         const response = await getBoards(config, offset, limit);
         
@@ -129,7 +145,7 @@ export function registerBoardResources(server: McpServer) {
     }),
     async (uri, params, _extra) => {
       try {
-        const config = Config.getAtlassianConfigFromEnv();
+        const config = getJiraConfig();
         const boardId = Array.isArray(params.boardId) ? params.boardId[0] : params.boardId;
         const board = await getBoardById(config, boardId);
         
@@ -168,7 +184,7 @@ export function registerBoardResources(server: McpServer) {
     }),
     async (uri, params, _extra) => {
       try {
-        const config = Config.getAtlassianConfigFromEnv();
+        const config = getJiraConfig();
         const boardId = Array.isArray(params.boardId) ? params.boardId[0] : params.boardId;
         const { limit, offset } = Resources.extractPagingParams(params);
         const response = await getBoardIssues(config, boardId, offset, limit);
@@ -208,7 +224,7 @@ export function registerBoardResources(server: McpServer) {
     }),
     async (uri, params, _extra) => {
       try {
-        const config = Config.getAtlassianConfigFromEnv();
+        const config = getJiraConfig();
         const boardId = Array.isArray(params.boardId) ? params.boardId[0] : params.boardId;
         // Gọi API lấy cấu hình board
         const headers = getAuthHeaders(config);

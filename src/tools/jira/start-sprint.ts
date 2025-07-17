@@ -17,18 +17,17 @@ export const startSprintSchema = z.object({
 type StartSprintParams = z.infer<typeof startSprintSchema>;
 
 async function startSprintToolImpl(params: StartSprintParams, context: any) {
-  const config = Config.getConfigFromContextOrEnv(context);
+  const config = Config.getJiraConfigFromContextOrEnv(context) || Config.getConfigFromContextOrEnv(context);
   const deploymentType = getDeploymentType(config.baseUrl);
-  const { sprintId, startDate, endDate, goal } = params;
   
-  logger.info(`Starting sprint ${sprintId} (${deploymentType})`);
-  const result = await startSprint(config, sprintId, startDate, endDate, goal);
+  logger.info(`Starting sprint ${params.sprintId} (${deploymentType})`);
+  const result = await startSprint(config, params.sprintId, params.startDate, params.endDate, params.goal);
   return {
     success: true,
-    sprintId,
-    startDate,
-    endDate,
-    goal: goal || null,
+    sprintId: params.sprintId,
+    startDate: params.startDate,
+    endDate: params.endDate,
+    goal: params.goal || null,
     result
   };
 }

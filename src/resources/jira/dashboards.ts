@@ -5,13 +5,29 @@
  */
 
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { dashboardListSchema, dashboardSchema, gadgetListSchema } from '../../schemas/jira.js';
 import { getDashboards, getMyDashboards, getDashboardById, getDashboardGadgets } from '../../utils/jira-resource-api.js';
 import { Logger } from '../../utils/logger.js';
-import { dashboardSchema, dashboardListSchema, gadgetListSchema } from '../../schemas/jira.js';
 import { Config, Resources } from '../../utils/mcp-helpers.js';
 import { getDeploymentType } from '../../utils/deployment-detector.js';
 
-const logger = Logger.getLogger('JiraDashboardResources');
+const logger = Logger.getLogger('JiraResources:dashboards');
+
+/**
+ * Get the appropriate Jira configuration (separate or legacy)
+ */
+function getJiraConfig(): Config.EnhancedAtlassianConfig {
+  // Try to get separate Jira config first
+  const jiraConfig = Config.getJiraConfigFromEnv();
+  if (jiraConfig) {
+    return jiraConfig;
+  }
+  
+  // Fallback to legacy config
+  const legacyConfig = Config.getAtlassianConfigFromEnv();
+  logger.warn('Using legacy configuration for Jira dashboards. Consider setting JIRA_URL and JIRA_PAT_TOKEN for better security.');
+  return legacyConfig;
+}
 
 /**
  * Format dashboard data to include deployment type
@@ -59,10 +75,10 @@ export function registerDashboardResources(server: McpServer) {
         };
       }
     }),
-    async (uri: string | URL, params: Record<string, any>, extra: any) => {
+    async (uri: string | URL, params: Record<string, any>, _extra: any) => {
       try {
         // Get config from context or environment
-        const config = Config.getAtlassianConfigFromEnv();
+        const config = getJiraConfig();
         const uriStr = typeof uri === 'string' ? uri : uri.href;
         
         const { limit, offset } = Resources.extractPagingParams(params);
@@ -100,10 +116,10 @@ export function registerDashboardResources(server: McpServer) {
         ]
       })
     }),
-    async (uri: string | URL, params: Record<string, any>, extra: any) => {
+    async (uri: string | URL, params: Record<string, any>, _extra: any) => {
       try {
         // Get config from context or environment
-        const config = Config.getAtlassianConfigFromEnv();
+        const config = getJiraConfig();
         const uriStr = typeof uri === 'string' ? uri : uri.href;
         
         const { limit, offset } = Resources.extractPagingParams(params);
@@ -141,10 +157,10 @@ export function registerDashboardResources(server: McpServer) {
         ]
       })
     }),
-    async (uri: string | URL, params: Record<string, any>, extra: any) => {
+    async (uri: string | URL, params: Record<string, any>, _extra: any) => {
       try {
         // Get config from context or environment
-        const config = Config.getAtlassianConfigFromEnv();
+        const config = getJiraConfig();
         const uriStr = typeof uri === 'string' ? uri : uri.href;
         
         const dashboardId = params.dashboardId || (uriStr.split('/').pop());
@@ -182,10 +198,10 @@ export function registerDashboardResources(server: McpServer) {
         ]
       })
     }),
-    async (uri: string | URL, params: Record<string, any>, extra: any) => {
+    async (uri: string | URL, params: Record<string, any>, _extra: any) => {
       try {
         // Get config from context or environment
-        const config = Config.getAtlassianConfigFromEnv();
+        const config = getJiraConfig();
         const uriStr = typeof uri === 'string' ? uri : uri.href;
         
         const dashboardId = params.dashboardId || (uriStr.split('/')[uriStr.split('/').length - 2]);

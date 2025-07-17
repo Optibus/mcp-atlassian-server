@@ -17,16 +17,32 @@ export const updateDashboardSchema = z.object({
 type UpdateDashboardParams = z.infer<typeof updateDashboardSchema>;
 
 async function updateDashboardToolImpl(params: UpdateDashboardParams, context: any) {
-  const config = Config.getConfigFromContextOrEnv(context);
+  const config = Config.getJiraConfigFromContextOrEnv(context) || Config.getConfigFromContextOrEnv(context);
   const deploymentType = getDeploymentType(config.baseUrl);
-  const { dashboardId, ...data } = params;
   
-  logger.info(`Updating dashboard ${dashboardId} (${deploymentType})`);
-  const result = await updateDashboard(config, dashboardId, data);
+  logger.info(`Updating dashboard ${params.dashboardId} (${deploymentType})`);
+  
+  // Build update data object
+  const updateData: Record<string, any> = {};
+  if (params.name) updateData.name = params.name;
+  if (params.description) updateData.description = params.description;
+  if (params.sharePermissions) updateData.sharePermissions = params.sharePermissions;
+  
+  // Check if we have any fields to update
+  if (Object.keys(updateData).length === 0) {
+    return {
+      success: false,
+      message: 'No fields provided to update'
+    };
+  }
+  
+  const result = await updateDashboard(config, params.dashboardId, updateData);
+  
   return {
     success: true,
-    dashboardId,
-    ...result
+    message: 'Dashboard updated successfully',
+    id: result.id,
+    name: result.name
   };
 }
 

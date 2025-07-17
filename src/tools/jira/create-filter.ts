@@ -25,7 +25,7 @@ export const createFilterSchema = z.object({
 type CreateFilterParams = z.infer<typeof createFilterSchema>;
 
 async function createFilterToolImpl(params: CreateFilterParams, context: any) {
-  const config = Config.getConfigFromContextOrEnv(context);
+  const config = Config.getJiraConfigFromContextOrEnv(context) || Config.getConfigFromContextOrEnv(context);
   const deploymentType = getDeploymentType(config.baseUrl);
   
   logger.info(`Creating filter: ${params.name} (${deploymentType})`);

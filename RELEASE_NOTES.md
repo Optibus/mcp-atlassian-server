@@ -1,12 +1,60 @@
-# MCP Atlassian Server 2.1.1
+# MCP Atlassian Server 2.2.0
 
-🚀 **Major refactor: Standardized resource/tool structure, removed content-metadata resource, updated developer documentation!**
+🎉 **Major Feature Release: Complete Server/Data Center Support with Separate Configuration System!**
 
 Available on npm (@phuc-nt/mcp-atlassian-server) or download directly. Use with Cline or any MCP-compatible client.
 
 ---
 
-### Updates in 2.1.1
+### 🚀 Major Updates in 2.2.0
+
+**🎯 Full Server/Data Center Support**
+- Complete implementation of Atlassian Server and Data Center support alongside existing Cloud support
+- Automatic deployment detection based on URL patterns (Cloud vs Server/DC)
+- Support for Personal Access Tokens (PAT) for Server/DC authentication
+- Enhanced user ID handling for different formats between Cloud (accountId) and Server/DC (username/key)
+
+**⚙️ Separate Configuration System**
+- Independent configuration for Jira and Confluence services
+- Perfect for mixed environments (e.g., Cloud Jira + Server Confluence)
+- Full backward compatibility with existing configuration
+- Smart configuration detection and validation
+
+**🔐 Advanced Authentication**
+- Multiple authentication methods: PAT tokens for Server/DC, API tokens for Cloud
+- Comprehensive authentication strategy pattern
+- Enhanced security with proper token handling
+- Auto-detection of appropriate auth method based on deployment type
+
+**🛠️ Technical Improvements**
+- Updated all 35 resources and tools (25 tools + 10 resources) with separate configuration support
+- Advanced API compatibility layer for Cloud vs Server/DC differences
+- Extensive test coverage with 127+ unit tests
+- Performance optimizations and enhanced error handling
+
+**📝 Configuration Examples**
+```bash
+# Separate Configuration (Recommended for mixed environments)
+JIRA_URL=https://jira.company.com
+JIRA_PAT_TOKEN=your_jira_pat_token
+CONFLUENCE_URL=https://confluence.company.com  
+CONFLUENCE_PAT_TOKEN=your_confluence_pat_token
+
+# Legacy Configuration (Still fully supported)
+ATLASSIAN_SITE_NAME=company.atlassian.net
+ATLASSIAN_USER_EMAIL=user@company.com
+ATLASSIAN_API_TOKEN=your_api_token
+```
+
+**📚 Enhanced Documentation**
+- Comprehensive Server/Data Center setup guide
+- Updated installation instructions with mixed environment examples
+- Enhanced troubleshooting section for authentication and SSL issues
+- Complete migration guide from Cloud-only to mixed environments
+
+---
+
+### Previous Updates in 2.1.1
 
 **Refactor & Standardization**
 - Refactored the entire codebase to standardize resource/tool structure, completely removed the content-metadata resource, and merged metadata into the page resource.

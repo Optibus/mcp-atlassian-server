@@ -25,7 +25,7 @@ export const registerGetJiraGadgetsResource = (server: McpServer) => {
     async (uri: string | URL, params: Record<string, any>, extra: any) => {
       try {
         // Get config from context or environment
-        const config = Config.getConfigFromContextOrEnv(extra?.context);
+        const config = Config.getJiraConfigFromContextOrEnv(extra?.context) || Config.getConfigFromContextOrEnv(extra?.context);
         const deploymentType = getDeploymentType(config.baseUrl);
         const uriStr = typeof uri === 'string' ? uri : uri.href;
         

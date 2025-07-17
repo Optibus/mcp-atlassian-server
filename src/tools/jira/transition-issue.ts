@@ -20,10 +20,10 @@ export const transitionIssueSchema = z.object({
 type TransitionIssueParams = z.infer<typeof transitionIssueSchema>;
 
 async function transitionIssueToolImpl(params: TransitionIssueParams, context: any) {
-  const config: AtlassianConfig = Config.getConfigFromContextOrEnv(context);
+  const config: AtlassianConfig = Config.getJiraConfigFromContextOrEnv(context) || Config.getConfigFromContextOrEnv(context);
   const deploymentType = getDeploymentType(config.baseUrl);
   
-  logger.info(`Transitioning issue ${params.issueIdOrKey} with transition ${params.transitionId} (${deploymentType})`);
+  logger.info(`Transitioning issue ${params.issueIdOrKey} with transition ID ${params.transitionId} (${deploymentType})`);
   
   const result = await transitionIssue(
     config,
@@ -34,10 +34,8 @@ async function transitionIssueToolImpl(params: TransitionIssueParams, context: a
   
   return {
     issueIdOrKey: params.issueIdOrKey,
-    success: result.success,
-    transitionId: params.transitionId,
-    deploymentType: deploymentType,
-    message: result.message
+    success: true,
+    message: 'Issue transitioned successfully'
   };
 }
 

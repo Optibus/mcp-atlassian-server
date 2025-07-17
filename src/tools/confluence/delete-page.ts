@@ -46,11 +46,11 @@ export async function deletePageHandler(
 export const registerDeletePageTool = (server: McpServer) => {
   server.tool(
     'deletePage',
-    'Delete a Confluence page (API v2)',
+    'Delete a page in Confluence (API v2)',
     deletePageSchema.shape,
     async (params: DeletePageParams, context: Record<string, any>) => {
       try {
-        const config = context?.atlassianConfig ?? Config.getAtlassianConfigFromEnv();
+        const config = context?.confluenceConfig ?? context?.atlassianConfig ?? Config.getConfluenceConfigFromEnv() ?? Config.getAtlassianConfigFromEnv();
         if (!config) {
           return {
             content: [

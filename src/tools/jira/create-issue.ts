@@ -25,7 +25,7 @@ export const createIssueSchema = z.object({
 type CreateIssueParams = z.infer<typeof createIssueSchema>;
 
 async function createIssueToolImpl(params: CreateIssueParams, context: any) {
-  const config: AtlassianConfig = Config.getConfigFromContextOrEnv(context);
+  const config: AtlassianConfig = Config.getJiraConfigFromContextOrEnv(context) || Config.getConfigFromContextOrEnv(context);
   const deploymentType = getDeploymentType(config.baseUrl);
   
   logger.info(`Creating new issue in project: ${params.projectKey} (${deploymentType})`);

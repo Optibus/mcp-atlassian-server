@@ -89,7 +89,7 @@ export const registerCreatePageTool = (server: McpServer) => {
     createPageSchema.shape,
     async (params: CreatePageParams, context: Record<string, any>) => {
       try {
-        const config = context?.atlassianConfig ?? Config.getAtlassianConfigFromEnv();
+        const config = context?.confluenceConfig ?? context?.atlassianConfig ?? Config.getConfluenceConfigFromEnv() ?? Config.getAtlassianConfigFromEnv();
         if (!config) {
           return {
             content: [

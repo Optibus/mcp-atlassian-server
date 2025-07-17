@@ -23,7 +23,7 @@ export const updateIssueSchema = z.object({
 type UpdateIssueParams = z.infer<typeof updateIssueSchema>;
 
 async function updateIssueToolImpl(params: UpdateIssueParams, context: any) {
-  const config: AtlassianConfig = Config.getConfigFromContextOrEnv(context);
+  const config: AtlassianConfig = Config.getJiraConfigFromContextOrEnv(context) || Config.getConfigFromContextOrEnv(context);
   const deploymentType = getDeploymentType(config.baseUrl);
   
   logger.info(`Updating issue: ${params.issueIdOrKey} (${deploymentType})`);

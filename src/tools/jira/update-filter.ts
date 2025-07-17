@@ -20,16 +20,34 @@ export const updateFilterSchema = z.object({
 type UpdateFilterParams = z.infer<typeof updateFilterSchema>;
 
 async function updateFilterToolImpl(params: UpdateFilterParams, context: any) {
-  const config = Config.getConfigFromContextOrEnv(context);
+  const config = Config.getJiraConfigFromContextOrEnv(context) || Config.getConfigFromContextOrEnv(context);
   const deploymentType = getDeploymentType(config.baseUrl);
   
-  logger.info(`Updating filter with ID: ${params.filterId} (${deploymentType})`);
-  const response = await updateFilter(config, params.filterId, params);
+  logger.info(`Updating filter ${params.filterId} (${deploymentType})`);
+  
+  // Build update data object
+  const updateData: Record<string, any> = {};
+  if (params.name) updateData.name = params.name;
+  if (params.jql) updateData.jql = params.jql;
+  if (params.description) updateData.description = params.description;
+  if (params.favourite !== undefined) updateData.favourite = params.favourite;
+  
+  // Check if we have any fields to update
+  if (Object.keys(updateData).length === 0) {
+    return {
+      success: false,
+      message: 'No fields provided to update'
+    };
+  }
+  
+  const result = await updateFilter(config, params.filterId, updateData);
+  
   return {
-    id: response.id,
-    name: response.name,
-    self: response.self,
-    success: true
+    success: true,
+    message: 'Filter updated successfully',
+    id: result.id,
+    name: result.name,
+    jql: result.jql
   };
 }
 

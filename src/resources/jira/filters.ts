@@ -91,39 +91,36 @@ export function registerFilterResources(server: McpServer) {
   
   // Đăng ký template kèm handler thực thi - chỉ đăng ký một lần mỗi URI
   server.resource('jira-filters-list', filtersTemplate, 
-    async (uri: string | URL, params: Record<string, any>, _extra: any) => {
+    async (uri: string | URL, params: Record<string, any>, extra: any) => {
       try {
-        // Get config from environment
-        const config = Config.getAtlassianConfigFromEnv();
+        // Get config from context or environment
+        const config = Config.getJiraConfigFromContextOrEnv(extra?.context) || Config.getAtlassianConfigFromEnv();
         
         const { limit, offset } = Resources.extractPagingParams(params);
         const response = await getFilters(config, offset, limit);
-        const formattedResponse = {
-          ...response,
-          values: formatFilterListData(response.values, config.baseUrl)
-        };
+        const formattedFilters = formatFilterListData(response.values, config.baseUrl);
         return Resources.createStandardResource(
           typeof uri === 'string' ? uri : uri.href,
-          formattedResponse.values,
+          formattedFilters,
           'filters',
           filterListSchema,
-          formattedResponse.total || formattedResponse.values.length,
+          response.total,
           limit,
           offset,
-          `${config.baseUrl}/secure/ManageFilters.jspa`
+          `${config.baseUrl}/secure/ManageFilters.jspa?filterView=search`
         );
       } catch (error) {
-        logger.error('Error getting filter list:', error);
+        logger.error('Error getting filters list:', error);
         throw error;
       }
     }
   );
-
+  
   server.resource('jira-filter-details', filterDetailsTemplate, 
-    async (uri: string | URL, params: Record<string, any>, _extra: any) => {
+    async (uri: string | URL, params: Record<string, any>, extra: any) => {
       try {
-        // Get config from environment
-        const config = Config.getAtlassianConfigFromEnv();
+        // Get config from context or environment
+        const config = Config.getJiraConfigFromContextOrEnv(extra?.context) || Config.getAtlassianConfigFromEnv();
         
         const filterId = Array.isArray(params.filterId) ? params.filterId[0] : params.filterId;
         const filter = await getFilterById(config, filterId);
@@ -146,10 +143,10 @@ export function registerFilterResources(server: McpServer) {
   );
 
   server.resource('jira-my-filters', myFiltersTemplate, 
-    async (uri: string | URL, _params: Record<string, any>, _extra: any) => {
+    async (uri: string | URL, _params: Record<string, any>, extra: any) => {
       try {
-        // Get config from environment
-        const config = Config.getAtlassianConfigFromEnv();
+        // Get config from context or environment
+        const config = Config.getJiraConfigFromContextOrEnv(extra?.context) || Config.getAtlassianConfigFromEnv();
         
         const filters = await getMyFilters(config);
         const formattedFilters = formatFilterListData(filters, config.baseUrl);

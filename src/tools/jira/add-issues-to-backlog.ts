@@ -18,16 +18,16 @@ export const addIssuesToBacklogSchema = z.object({
 type AddIssuesToBacklogParams = z.infer<typeof addIssuesToBacklogSchema>;
 
 async function addIssuesToBacklogToolImpl(params: AddIssuesToBacklogParams, context: any) {
-  const config = Config.getConfigFromContextOrEnv(context);
+  const config = Config.getJiraConfigFromContextOrEnv(context) || Config.getConfigFromContextOrEnv(context);
   const deploymentType = getDeploymentType(config.baseUrl);
-  const { boardId, issueKeys } = params;
-  const keys = Array.isArray(issueKeys) ? issueKeys : [issueKeys];
+  
+  const keys = Array.isArray(params.issueKeys) ? params.issueKeys : [params.issueKeys];
   
   logger.info(`Adding ${keys.length} issues to backlog (${deploymentType})`);
-  const result = await addIssuesToBacklog(config, keys, boardId);
+  const result = await addIssuesToBacklog(config, keys, params.boardId);
   return {
     success: true,
-    boardId: boardId || null,
+    boardId: params.boardId || null,
     issueKeys: keys,
     result
   };

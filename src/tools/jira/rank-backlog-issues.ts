@@ -17,18 +17,20 @@ export const rankBacklogIssuesSchema = z.object({
 type RankBacklogIssuesParams = z.infer<typeof rankBacklogIssuesSchema>;
 
 async function rankBacklogIssuesToolImpl(params: RankBacklogIssuesParams, context: any) {
-  const config = Config.getConfigFromContextOrEnv(context);
+  const config = Config.getJiraConfigFromContextOrEnv(context) || Config.getConfigFromContextOrEnv(context);
   const deploymentType = getDeploymentType(config.baseUrl);
-  const { boardId, issueKeys, rankBeforeIssue, rankAfterIssue } = params;
   
-  logger.info(`Ranking ${issueKeys.length} issues in backlog for board ${boardId} (${deploymentType})`);
-  const result = await rankBacklogIssues(config, boardId, issueKeys, { rankBeforeIssue, rankAfterIssue });
+  logger.info(`Ranking ${params.issueKeys.length} issues in backlog for board ${params.boardId} (${deploymentType})`);
+  const result = await rankBacklogIssues(config, params.boardId, params.issueKeys, { 
+    rankBeforeIssue: params.rankBeforeIssue, 
+    rankAfterIssue: params.rankAfterIssue 
+  });
   return {
     success: true,
-    boardId,
-    issueKeys,
-    rankBeforeIssue: rankBeforeIssue || null,
-    rankAfterIssue: rankAfterIssue || null,
+    boardId: params.boardId,
+    issueKeys: params.issueKeys,
+    rankBeforeIssue: params.rankBeforeIssue || null,
+    rankAfterIssue: params.rankAfterIssue || null,
     result
   };
 }

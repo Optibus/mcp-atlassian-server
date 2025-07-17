@@ -112,7 +112,7 @@ export const registerUpdatePageTool = (server: McpServer) => {
     updatePageSchema.shape,
     async (params: UpdatePageParams, context: Record<string, any>) => {
       try {
-        const config = context?.atlassianConfig ?? Config.getAtlassianConfigFromEnv();
+        const config = context?.confluenceConfig ?? context?.atlassianConfig ?? Config.getConfluenceConfigFromEnv() ?? Config.getAtlassianConfigFromEnv();
         if (!config) {
           return {
             content: [

@@ -16,14 +16,15 @@ export const deleteFilterSchema = z.object({
 type DeleteFilterParams = z.infer<typeof deleteFilterSchema>;
 
 async function deleteFilterToolImpl(params: DeleteFilterParams, context: any) {
-  const config = Config.getConfigFromContextOrEnv(context);
+  const config = Config.getJiraConfigFromContextOrEnv(context) || Config.getConfigFromContextOrEnv(context);
   const deploymentType = getDeploymentType(config.baseUrl);
   
   logger.info(`Deleting filter with ID: ${params.filterId} (${deploymentType})`);
-  await deleteFilter(config, params.filterId);
+  const result = await deleteFilter(config, params.filterId);
   return {
+    filterId: params.filterId,
     success: true,
-    filterId: params.filterId
+    message: 'Filter deleted successfully'
   };
 }
 

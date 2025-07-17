@@ -80,7 +80,7 @@ export const registerAddCommentTool = (server: McpServer) => {
     addCommentSchema.shape,
     async (params: AddCommentParams, context: Record<string, any>) => {
       try {
-        const config = context?.atlassianConfig ?? Config.getAtlassianConfigFromEnv();
+        const config = context?.confluenceConfig ?? context?.atlassianConfig ?? Config.getConfluenceConfigFromEnv() ?? Config.getAtlassianConfigFromEnv();
         if (!config) {
           return {
             content: [

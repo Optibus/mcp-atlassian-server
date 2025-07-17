@@ -20,16 +20,14 @@ export const createSprintSchema = z.object({
 type CreateSprintParams = z.infer<typeof createSprintSchema>;
 
 async function createSprintToolImpl(params: CreateSprintParams, context: any) {
-  const config = Config.getConfigFromContextOrEnv(context);
+  const config = Config.getJiraConfigFromContextOrEnv(context) || Config.getConfigFromContextOrEnv(context);
   const deploymentType = getDeploymentType(config.baseUrl);
   
   logger.info(`Creating sprint: ${params.name} for board ${params.boardId} (${deploymentType})`);
-  const response = await createSprint(config, params.boardId, params.name, params.startDate, params.endDate, params.goal);
+  const result = await createSprint(config, params.boardId, params.name, params.startDate, params.endDate, params.goal);
   return {
-    id: response.id,
-    name: response.name,
-    state: response.state,
-    success: true
+    success: true,
+    ...result
   };
 }
 

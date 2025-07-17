@@ -15,16 +15,17 @@ export const closeSprintSchema = z.object({
 type CloseSprintParams = z.infer<typeof closeSprintSchema>;
 
 async function closeSprintToolImpl(params: CloseSprintParams, context: any) {
-  const config = Config.getConfigFromContextOrEnv(context);
+  const config = Config.getJiraConfigFromContextOrEnv(context) || Config.getConfigFromContextOrEnv(context);
   const deploymentType = getDeploymentType(config.baseUrl);
-  const { sprintId, ...options } = params;
   
-  logger.info(`Closing sprint ${sprintId} (${deploymentType})`);
-  const result = await closeSprint(config, sprintId, options);
+  logger.info(`Closing sprint ${params.sprintId} (${deploymentType})`);
+  const result = await closeSprint(config, params.sprintId, {
+    completeDate: params.completeDate
+  });
   return {
     success: true,
-    sprintId,
-    ...options,
+    sprintId: params.sprintId,
+    completeDate: params.completeDate || null,
     result
   };
 }

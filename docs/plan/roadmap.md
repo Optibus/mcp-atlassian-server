@@ -2,6 +2,32 @@
 
 Roadmap này mô tả các giai đoạn phát triển trong tương lai của MCP Atlassian Server, tập trung vào tối ưu hóa cho môi trường local và cải thiện trải nghiệm người dùng.
 
+## 🎉 Phase 11: Server/Data Center Support - ✅ HOÀN THÀNH (v2.2.0)
+
+### Tính năng hoàn thành trong v2.2.0:
+- [x] **Full Server/Data Center Support**: Hỗ trợ hoàn chỉnh Atlassian Server và Data Center cùng với Cloud
+- [x] **Separate Configuration System**: Cấu hình riêng biệt cho Jira và Confluence, hỗ trợ môi trường mixed
+- [x] **Advanced Authentication**: Nhiều phương thức xác thực - PAT tokens cho Server/DC, API tokens cho Cloud
+- [x] **Automatic Deployment Detection**: Phát hiện thông minh Cloud vs Server/DC dựa trên URL patterns
+- [x] **Enhanced User ID Handling**: Xử lý seamless các format user ID khác nhau giữa Cloud (accountId) và Server/DC (username/key)
+- [x] **Updated All Resources & Tools**: 35 resources và tools (25 tools + 10 resources) đã được cập nhật
+- [x] **Comprehensive Testing**: 127+ unit tests với coverage toàn diện
+- [x] **Enhanced Documentation**: Hướng dẫn setup đầy đủ cho Server/DC và mixed environments
+
+### Environment Variables mới:
+```bash
+# Separate Configuration (Recommended)
+JIRA_URL=https://jira.company.com
+JIRA_PAT_TOKEN=your_jira_pat_token
+CONFLUENCE_URL=https://confluence.company.com  
+CONFLUENCE_PAT_TOKEN=your_confluence_pat_token
+
+# Legacy Configuration (Still Supported)
+ATLASSIAN_SITE_NAME=company.atlassian.net
+ATLASSIAN_USER_EMAIL=user@company.com
+ATLASSIAN_API_TOKEN=your_api_token
+```
+
 ## Phase 10: Chuẩn Bị Quốc Tế Hóa và Publish Lên Marketplace
 
 ### 0. Chuyển đổi ngôn ngữ sang tiếng Anh cho phiên bản quốc tế

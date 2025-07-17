@@ -47,7 +47,7 @@ export const registerUpdateFooterCommentTool = (server: McpServer) => {
     updateFooterCommentSchema.shape,
     async (params: UpdateFooterCommentParams, context: Record<string, any>) => {
       try {
-        const config = context?.atlassianConfig ?? Config.getAtlassianConfigFromEnv();
+        const config = context?.confluenceConfig ?? context?.atlassianConfig ?? Config.getConfluenceConfigFromEnv() ?? Config.getAtlassianConfigFromEnv();
         if (!config) {
           return {
             content: [

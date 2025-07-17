@@ -10,6 +10,22 @@ import { normalizeUserData } from '../../utils/user-id-helper.js';
 const logger = Logger.getLogger('JiraResource:Users');
 
 /**
+ * Get the appropriate Jira configuration (separate or legacy)
+ */
+function getJiraConfig(): Config.EnhancedAtlassianConfig {
+  // Try to get separate Jira config first
+  const jiraConfig = Config.getJiraConfigFromEnv();
+  if (jiraConfig) {
+    return jiraConfig;
+  }
+  
+  // Fallback to legacy config
+  const legacyConfig = Config.getAtlassianConfigFromEnv();
+  logger.warn('Using legacy configuration for Jira users. Consider setting JIRA_URL and JIRA_PAT_TOKEN for better security.');
+  return legacyConfig;
+}
+
+/**
  * Get authentication headers based on deployment type
  */
 function getAuthHeaders(config: AtlassianConfig): Record<string, string> {
@@ -237,7 +253,7 @@ export function registerUserResources(server: McpServer) {
     async (uri, params, _extra) => {
       let normalizedUserId = '';
       try {
-        const config = Config.getAtlassianConfigFromEnv();
+        const config = getJiraConfig();
         const deploymentType = getDeploymentType(config.baseUrl);
         
         if (!params.userId) {
@@ -303,7 +319,7 @@ export function registerUserResources(server: McpServer) {
     }),
     async (uri, params, _extra) => {
       try {
-        const config = Config.getAtlassianConfigFromEnv();
+        const config = getJiraConfig();
         const deploymentType = getDeploymentType(config.baseUrl);
         const headers = getAuthHeaders(config);
         
@@ -381,7 +397,7 @@ export function registerUserResources(server: McpServer) {
     }),
     async (uri, params, _extra) => {
       try {
-        const config = Config.getAtlassianConfigFromEnv();
+        const config = getJiraConfig();
         const deploymentType = getDeploymentType(config.baseUrl);
         const headers = getAuthHeaders(config);
         

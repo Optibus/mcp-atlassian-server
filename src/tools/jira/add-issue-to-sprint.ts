@@ -15,16 +15,17 @@ export const addIssueToSprintSchema = z.object({
 type AddIssueToSprintParams = z.infer<typeof addIssueToSprintSchema>;
 
 async function addIssueToSprintToolImpl(params: AddIssueToSprintParams, context: any) {
-  const config = Config.getConfigFromContextOrEnv(context);
+  const config = Config.getJiraConfigFromContextOrEnv(context) || Config.getConfigFromContextOrEnv(context);
   const deploymentType = getDeploymentType(config.baseUrl);
-  const { sprintId, issueKeys } = params;
   
-  logger.info(`Adding ${issueKeys.length} issues to sprint ${sprintId} (${deploymentType})`);
-  const result = await addIssueToSprint(config, sprintId, issueKeys);
+  const keys = Array.isArray(params.issueKeys) ? params.issueKeys : [params.issueKeys];
+  
+  logger.info(`Adding ${keys.length} issues to sprint ${params.sprintId} (${deploymentType})`);
+  const result = await addIssueToSprint(config, params.sprintId, keys);
   return {
     success: true,
-    sprintId,
-    issueKeys,
+    sprintId: params.sprintId,
+    issueKeys: keys,
     result
   };
 }

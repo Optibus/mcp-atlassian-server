@@ -11,7 +11,23 @@ import { Logger } from '../../utils/logger.js';
 import { Config, Resources } from '../../utils/mcp-helpers.js';
 import { getDeploymentType } from '../../utils/deployment-detector.js';
 
-const logger = Logger.getLogger('JiraSprintResources');
+const logger = Logger.getLogger('JiraResources:sprints');
+
+/**
+ * Get the appropriate Jira configuration (separate or legacy)
+ */
+function getJiraConfig(): Config.EnhancedAtlassianConfig {
+  // Try to get separate Jira config first
+  const jiraConfig = Config.getJiraConfigFromEnv();
+  if (jiraConfig) {
+    return jiraConfig;
+  }
+  
+  // Fallback to legacy config
+  const legacyConfig = Config.getAtlassianConfigFromEnv();
+  logger.warn('Using legacy configuration for Jira sprints. Consider setting JIRA_URL and JIRA_PAT_TOKEN for better security.');
+  return legacyConfig;
+}
 
 /**
  * Format sprint data to include deployment type
@@ -61,7 +77,7 @@ export function registerSprintResources(server: McpServer) {
     }),
     async (uri, params, _extra) => {
       try {
-        const config = Config.getAtlassianConfigFromEnv();
+        const config = getJiraConfig();
         const boardId = Array.isArray(params.boardId) ? params.boardId[0] : params.boardId;
         const { limit, offset } = Resources.extractPagingParams(params);
         const response = await getSprintsByBoard(config, boardId, offset, limit);
@@ -101,7 +117,7 @@ export function registerSprintResources(server: McpServer) {
     }),
     async (uri, params, _extra) => {
       try {
-        const config = Config.getAtlassianConfigFromEnv();
+        const config = getJiraConfig();
         const sprintId = Array.isArray(params.sprintId) ? params.sprintId[0] : params.sprintId;
         const sprint = await getSprintById(config, sprintId);
         
@@ -140,7 +156,7 @@ export function registerSprintResources(server: McpServer) {
     }),
     async (uri, params, _extra) => {
       try {
-        const config = Config.getAtlassianConfigFromEnv();
+        const config = getJiraConfig();
         const sprintId = Array.isArray(params.sprintId) ? params.sprintId[0] : params.sprintId;
         const { limit, offset } = Resources.extractPagingParams(params);
         const response = await getSprintIssues(config, sprintId, offset, limit);
