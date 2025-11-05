@@ -35,23 +35,31 @@ export function registerPageResources(server: McpServer) {
           throw new Error('Missing pageId in URI');
         }
         logger.info(`Getting details for Confluence page (v2): ${normalizedPageId}`);
-        const page = await getConfluencePageV2(config, normalizedPageId);
-        let body = {};
-        try {
-          body = await getConfluencePageBodyV2(config, normalizedPageId, 'storage');
-          logger.info(`Successfully retrieved body for page ${normalizedPageId}, body keys:`, Object.keys(body || {}));
-        } catch (e) {
-          const errorMsg = e instanceof Error ? e.message : String(e);
-          logger.warn(`Failed to get body for page ${normalizedPageId}: ${errorMsg}`);
-          if (e instanceof Error && 'statusCode' in e) {
-            logger.warn(`Status code: ${(e as any).statusCode}`);
+        // Fetch page with body content in single API call
+        const page = await getConfluencePageV2(config, normalizedPageId, 'storage');
+        logger.debug(`Page response keys:`, Object.keys(page || {}));
+        
+        // Extract body content from the page response
+        // API v2 with body-format parameter returns body content nested under 'body.storage'
+        let bodyValue = '';
+        let bodyType = 'storage';
+        
+        if (page.body && typeof page.body === 'object') {
+          if ('storage' in page.body && page.body.storage && typeof page.body.storage === 'object') {
+            bodyValue = page.body.storage.value || '';
+            bodyType = page.body.storage.representation || 'storage';
+            logger.info(`Successfully extracted body content for page ${normalizedPageId}, length: ${bodyValue.length}`);
+          } else {
+            logger.warn(`Page ${normalizedPageId} body exists but storage format not found. Body keys:`, Object.keys(page.body));
           }
-          body = {};
+        } else {
+          logger.warn(`Page ${normalizedPageId} has no body field in response`);
         }
+        
         const formattedPage = {
           ...page,
-          body: (body && typeof body === 'object' && 'value' in body) ? body.value : '',
-          bodyType: (body && typeof body === 'object' && 'representation' in body) ? body.representation : 'storage',
+          body: bodyValue,
+          bodyType: bodyType,
         };
         const uriString = typeof uri === 'string' ? uri : uri.href;
         return Resources.createStandardResource(

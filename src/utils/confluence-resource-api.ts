@@ -53,12 +53,18 @@ export async function getConfluencePagesV2(config: AtlassianConfig, cursor?: str
   );
 }
 
-// Get Confluence page details (API v2, metadata only)
-export async function getConfluencePageV2(config: AtlassianConfig, pageId: string): Promise<any> {
+// Get Confluence page details (API v2, optionally with body)
+export async function getConfluencePageV2(config: AtlassianConfig, pageId: string, bodyFormat?: string): Promise<any> {
+  const params: Record<string, any> = {};
+  if (bodyFormat) {
+    params['body-format'] = bodyFormat;
+  }
   return await callConfluenceApi<any>(
     config,
     `/api/v2/pages/${encodeURIComponent(pageId)}`,
-    'GET'
+    'GET',
+    null,
+    params
   );
 }
 
