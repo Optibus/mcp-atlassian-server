@@ -38,8 +38,14 @@ export function registerPageResources(server: McpServer) {
         const page = await getConfluencePageV2(config, normalizedPageId);
         let body = {};
         try {
-          body = await getConfluencePageBodyV2(config, normalizedPageId);
+          body = await getConfluencePageBodyV2(config, normalizedPageId, 'storage');
+          logger.info(`Successfully retrieved body for page ${normalizedPageId}, body keys:`, Object.keys(body || {}));
         } catch (e) {
+          const errorMsg = e instanceof Error ? e.message : String(e);
+          logger.warn(`Failed to get body for page ${normalizedPageId}: ${errorMsg}`);
+          if (e instanceof Error && 'statusCode' in e) {
+            logger.warn(`Status code: ${(e as any).statusCode}`);
+          }
           body = {};
         }
         const formattedPage = {

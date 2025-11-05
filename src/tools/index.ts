@@ -1,4 +1,5 @@
 import { registerCreateIssueTool } from './jira/create-issue.js';
+import { registerGetIssueTool } from './jira/get-issue.js';
 import { registerUpdateIssueTool } from './jira/update-issue.js';
 import { registerTransitionIssueTool } from './jira/transition-issue.js';
 import { registerAssignIssueTool } from './jira/assign-issue.js';
@@ -31,6 +32,7 @@ import { registerAddIssueToSprintTool } from './jira/add-issue-to-sprint.js';
 export function registerAllTools(server: McpServer) {
   // Jira issue tools
   registerCreateIssueTool(server);
+  registerGetIssueTool(server);
   registerUpdateIssueTool(server);
   registerTransitionIssueTool(server);
   registerAssignIssueTool(server);

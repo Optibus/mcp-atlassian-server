@@ -63,11 +63,13 @@ export async function getConfluencePageV2(config: AtlassianConfig, pageId: strin
 }
 
 // Get Confluence page body (API v2)
-export async function getConfluencePageBodyV2(config: AtlassianConfig, pageId: string): Promise<any> {
+export async function getConfluencePageBodyV2(config: AtlassianConfig, pageId: string, bodyFormat: string = 'storage'): Promise<any> {
   return await callConfluenceApi<any>(
     config,
     `/api/v2/pages/${encodeURIComponent(pageId)}/body`,
-    'GET'
+    'GET',
+    null,
+    { 'body-format': bodyFormat }
   );
 }
 
