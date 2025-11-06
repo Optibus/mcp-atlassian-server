@@ -96,7 +96,7 @@ export class Logger {
    */
   error(message: string, data?: any): void {
     if (Logger.logLevel >= LogLevel.ERROR) {
-      const logMsg = `[ERROR][${this.moduleName}] ${message}`;
+      const logMsg = `[MCP][ERROR][${this.moduleName}] ${message}`;
       process.stderr.write(
         `${COLORS.RED}${logMsg}${COLORS.RESET}\n`
       );
@@ -116,7 +116,7 @@ export class Logger {
    */
   warn(message: string, data?: any): void {
     if (Logger.logLevel >= LogLevel.WARN) {
-      const logMsg = `[WARN][${this.moduleName}] ${message}`;
+      const logMsg = `[MCP][WARN][${this.moduleName}] ${message}`;
       process.stderr.write(
         `${COLORS.YELLOW}${logMsg}${COLORS.RESET}\n`
       );
@@ -136,7 +136,8 @@ export class Logger {
    */
   info(message: string, data?: any): void {
     if (Logger.logLevel >= LogLevel.INFO) {
-      const logMsg = `[INFO][${this.moduleName}] ${message}`;
+      const logMsg = `[MCP][INFO][${this.moduleName}] ${message}`;
+      // All logs go to stderr - stdout is reserved for MCP JSON-RPC protocol only
       process.stderr.write(
         `${COLORS.BLUE}${logMsg}${COLORS.RESET}\n`
       );
@@ -156,7 +157,8 @@ export class Logger {
    */
   debug(message: string, data?: any): void {
     if (Logger.logLevel >= LogLevel.DEBUG) {
-      const logMsg = `[DEBUG][${this.moduleName}] ${message}`;
+      const logMsg = `[MCP][DEBUG][${this.moduleName}] ${message}`;
+      // All logs go to stderr - stdout is reserved for MCP JSON-RPC protocol only
       process.stderr.write(
         `${COLORS.GRAY}${logMsg}${COLORS.RESET}\n`
       );

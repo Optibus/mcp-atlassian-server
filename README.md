@@ -60,12 +60,15 @@ Slap this bad boy into your Cursor MCP config (`~/.cursor/mcp.json` or via Setti
       "env": {
         "ATLASSIAN_SITE_NAME": "yourdomain.atlassian.net",
         "ATLASSIAN_USER_EMAIL": "email@company.com",
-        "ATLASSIAN_API_TOKEN": "APITOKEN"
+        "ATLASSIAN_API_TOKEN": "APITOKEN",
+        "LOG_LEVEL": "warn"
       }
     }
   }
 }
 ```
+
+**Note:** Cursor shows all MCP logs with an `[error]` prefix in the output panel. This is just Cursor's UI - it doesn't mean something is broken! The `[MCP]` prefix helps identify our server's logs. If you find the logs too chatty, set `LOG_LEVEL` to `warn` or `error` to reduce noise.
 
 ### Getting Your Atlassian API Token
 

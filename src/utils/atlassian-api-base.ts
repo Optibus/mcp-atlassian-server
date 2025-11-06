@@ -181,7 +181,7 @@ export async function callConfluenceApi<T>(
         ? ` -d '${JSON.stringify(data)}'`
         : ""
     }`;
-    logger.info(`Debug with curl: ${curlCmd}`);
+    // logger.info(`Debug with curl: ${curlCmd}`);
     const fetchOptions: RequestInit = {
       method,
       headers,

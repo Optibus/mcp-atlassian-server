@@ -117,7 +117,7 @@ export async function getIssue(
     const curlCmd = `curl -X GET -H "Content-Type: application/json" -H "Accept: application/json" -H "User-Agent: MCP-Atlassian-Server/1.0.0" -u "${
       config.email
     }:${config.apiToken.substring(0, 5)}..." "${url}"`;
-    logger.info(`Debug with curl: ${curlCmd}`);
+    // logger.info(`Debug with curl: ${curlCmd}`);
     const response = await fetch(url, {
       method: "GET",
       headers,
@@ -164,7 +164,8 @@ export async function searchIssues(
     const params = new URLSearchParams({
       jql: jql || "order by created DESC",
       maxResults: maxResults.toString(),
-      fields: "summary,status,issuetype,priority,assignee,reporter,created,updated,key"
+      fields:
+        "summary,status,issuetype,priority,assignee,reporter,created,updated,key",
     });
     const url = `${baseUrl}/rest/api/3/search/jql?${params.toString()}`;
     logger.debug(`Searching issues with JQL: ${jql}`);
@@ -172,7 +173,7 @@ export async function searchIssues(
     const curlCmd = `curl -X GET -H "Content-Type: application/json" -H "Accept: application/json" -H "User-Agent: MCP-Atlassian-Server/1.0.0" -u "${
       config.email
     }:${config.apiToken.substring(0, 5)}..." "${url}"`;
-    logger.info(`Debug with curl: ${curlCmd}`);
+    // logger.info(`Debug with curl: ${curlCmd}`);
     const response = await fetch(url, {
       method: "GET",
       headers,
@@ -185,7 +186,7 @@ export async function searchIssues(
       throw new Error(`Jira API error (${statusCode}): ${responseText}`);
     }
     const searchResults = await response.json();
-    
+
     // Standard /search endpoint returns issues with fields
     return searchResults;
   } catch (error: any) {

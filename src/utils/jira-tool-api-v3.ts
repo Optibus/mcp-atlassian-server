@@ -121,7 +121,7 @@ export async function createIssue(
     }:${config.apiToken.substring(0, 5)}...\" \"${url}\" -d '${JSON.stringify(
       data
     )}'`;
-    logger.info(`Debug with curl: ${curlCmd}`);
+    // logger.info(`Debug with curl: ${curlCmd}`);
 
     const response = await fetch(url, {
       method: "POST",
@@ -232,7 +232,7 @@ export async function updateIssue(
     }:${config.apiToken.substring(0, 5)}..." "${url}" -d '${JSON.stringify(
       data
     )}'`;
-    logger.info(`Debug with curl: ${curlCmd}`);
+    // logger.info(`Debug with curl: ${curlCmd}`);
     const response = await fetch(url, {
       method: "PUT",
       headers,
@@ -356,7 +356,7 @@ export async function transitionIssue(
     }:${config.apiToken.substring(0, 5)}..." "${url}" -d '${JSON.stringify(
       data
     )}'`;
-    logger.info(`Debug with curl: ${curlCmd}`);
+    // logger.info(`Debug with curl: ${curlCmd}`);
     const response = await fetch(url, {
       method: "POST",
       headers,
@@ -453,7 +453,7 @@ export async function assignIssue(
     }:${config.apiToken.substring(0, 5)}..." "${url}" -d '${JSON.stringify(
       data
     )}'`;
-    logger.info(`Debug with curl: ${curlCmd}`);
+    // logger.info(`Debug with curl: ${curlCmd}`);
     const response = await fetch(url, {
       method: "PUT",
       headers,
