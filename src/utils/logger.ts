@@ -1,36 +1,73 @@
-import dotenv from 'dotenv';
+import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
 
 // Load environment variables
 dotenv.config();
+
+// Setup file logging - use absolute path to ensure logs work in MCP context
+const LOG_DIR = "/Users/hinnerk.bruegmann/code/mcp-atlassian-server/logs";
+const LOG_FILE = path.join(LOG_DIR, "mcp-server.log");
+
+// Create logs directory if it doesn't exist
+try {
+  if (!fs.existsSync(LOG_DIR)) {
+    fs.mkdirSync(LOG_DIR, { recursive: true });
+  }
+} catch (error) {
+  // Log directory creation failed, logs will be disabled
+  console.error("Failed to create logs directory:", error);
+}
+
+// Function to write to log file
+function writeToFile(message: string): void {
+  try {
+    const timestamp = new Date().toISOString();
+    fs.appendFileSync(LOG_FILE, `${timestamp} ${message}\n`);
+  } catch (error) {
+    // Silently fail if we can't write to file
+  }
+}
 
 // Define log levels
 export enum LogLevel {
   ERROR = 0,
   WARN = 1,
   INFO = 2,
-  DEBUG = 3
+  DEBUG = 3,
 }
 
-// Define colors for output
-const COLORS = {
-  RESET: '\x1b[0m',
-  RED: '\x1b[31m',
-  YELLOW: '\x1b[33m',
-  BLUE: '\x1b[34m',
-  GRAY: '\x1b[90m'
-};
+// Detect if running as MCP server (stdio transport means colors cause issues)
+const isMcpServer = process.env.MCP_SERVER === "true" || !process.stderr.isTTY;
+
+// Define colors for output (disabled for MCP to avoid stderr interpretation as errors)
+const COLORS = isMcpServer
+  ? {
+      RESET: "",
+      RED: "",
+      YELLOW: "",
+      BLUE: "",
+      GRAY: "",
+    }
+  : {
+      RESET: "\x1b[0m",
+      RED: "\x1b[31m",
+      YELLOW: "\x1b[33m",
+      BLUE: "\x1b[34m",
+      GRAY: "\x1b[90m",
+    };
 
 // Get log level from environment variable
 const getLogLevelFromEnv = (): LogLevel => {
   const logLevel = process.env.LOG_LEVEL?.toLowerCase();
   switch (logLevel) {
-    case 'debug':
+    case "debug":
       return LogLevel.DEBUG;
-    case 'info':
+    case "info":
       return LogLevel.INFO;
-    case 'warn':
+    case "warn":
       return LogLevel.WARN;
-    case 'error':
+    case "error":
       return LogLevel.ERROR;
     default:
       return LogLevel.INFO; // Default is INFO
@@ -59,8 +96,16 @@ export class Logger {
    */
   error(message: string, data?: any): void {
     if (Logger.logLevel >= LogLevel.ERROR) {
-      console.error(`${COLORS.RED}[ERROR][${this.moduleName}]${COLORS.RESET} ${message}`);
-      if (data) console.error(data);
+      const logMsg = `[ERROR][${this.moduleName}] ${message}`;
+      process.stderr.write(
+        `${COLORS.RED}${logMsg}${COLORS.RESET}\n`
+      );
+      writeToFile(logMsg);
+      if (data) {
+        const dataStr = JSON.stringify(data, null, 2);
+        process.stderr.write(`${dataStr}\n`);
+        writeToFile(dataStr);
+      }
     }
   }
 
@@ -71,8 +116,16 @@ export class Logger {
    */
   warn(message: string, data?: any): void {
     if (Logger.logLevel >= LogLevel.WARN) {
-      console.warn(`${COLORS.YELLOW}[WARN][${this.moduleName}]${COLORS.RESET} ${message}`);
-      if (data) console.warn(data);
+      const logMsg = `[WARN][${this.moduleName}] ${message}`;
+      process.stderr.write(
+        `${COLORS.YELLOW}${logMsg}${COLORS.RESET}\n`
+      );
+      writeToFile(logMsg);
+      if (data) {
+        const dataStr = JSON.stringify(data, null, 2);
+        process.stderr.write(`${dataStr}\n`);
+        writeToFile(dataStr);
+      }
     }
   }
 
@@ -83,8 +136,16 @@ export class Logger {
    */
   info(message: string, data?: any): void {
     if (Logger.logLevel >= LogLevel.INFO) {
-      console.info(`${COLORS.BLUE}[INFO][${this.moduleName}]${COLORS.RESET} ${message}`);
-      if (data) console.info(data);
+      const logMsg = `[INFO][${this.moduleName}] ${message}`;
+      process.stderr.write(
+        `${COLORS.BLUE}${logMsg}${COLORS.RESET}\n`
+      );
+      writeToFile(logMsg);
+      if (data) {
+        const dataStr = JSON.stringify(data, null, 2);
+        process.stderr.write(`${dataStr}\n`);
+        writeToFile(dataStr);
+      }
     }
   }
 
@@ -95,8 +156,16 @@ export class Logger {
    */
   debug(message: string, data?: any): void {
     if (Logger.logLevel >= LogLevel.DEBUG) {
-      console.debug(`${COLORS.GRAY}[DEBUG][${this.moduleName}]${COLORS.RESET} ${message}`);
-      if (data) console.debug(data);
+      const logMsg = `[DEBUG][${this.moduleName}] ${message}`;
+      process.stderr.write(
+        `${COLORS.GRAY}${logMsg}${COLORS.RESET}\n`
+      );
+      writeToFile(logMsg);
+      if (data) {
+        const dataStr = JSON.stringify(data, null, 2);
+        process.stderr.write(`${dataStr}\n`);
+        writeToFile(dataStr);
+      }
     }
   }
 
@@ -116,4 +185,4 @@ export class Logger {
   static setLogLevel(level: LogLevel): void {
     Logger.logLevel = level;
   }
-} 
+}

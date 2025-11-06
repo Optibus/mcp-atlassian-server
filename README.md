@@ -7,6 +7,21 @@
 [![MCP Atlassian Server (by phuc-nt)](https://img.shields.io/badge/MCP%20Marketplace--Pending%20Review-orange)](https://github.com/phuc-nt/mcp-atlassian-server)
 [![smithery badge](https://smithery.ai/badge/@phuc-nt/mcp-atlassian-server)](https://smithery.ai/server/@phuc-nt/mcp-atlassian-server)
 
+## What's New in Version 2.2.0 🎯
+
+**Tool-First Architecture** - Major UX improvement for LLMs!
+
+- **7 New Read Tools**: Added dedicated tools for reading Confluence and Jira data
+  - `getPage`, `listPages`, `getSpace`, `listSpaces` (Confluence)
+  - `listIssues`, `listProjects`, `getProject` (Jira)
+- **Better LLM Experience**: Tools are easier to discover and use than resources
+- **Backward Compatible**: Resources still work, nothing breaks
+- **Clear Separation**: Read tools organized separately from write tools
+
+**Why Tools Over Resources?** LLMs have a much easier time with tools (simple commands like `getPage`) than resources (URI construction like `confluence://pages/{pageId}`). This change makes the server significantly more accessible to AI assistants.
+
+👉 **See [TOOL_BASED_ARCHITECTURE.md](./TOOL_BASED_ARCHITECTURE.md) for details.**
+
 ## What's New in Version 2.1.1 🚀
 
 - Refactored the entire codebase to standardize resource/tool structure, completely removed the content-metadata resource, and merged metadata into the page resource.
@@ -37,7 +52,7 @@ For full details on all changes, improvements, and fixes, see the [CHANGELOG](./
 
 ![Introduction Demo](https://raw.githubusercontent.com/phuc-nt/public-assets/main/mcp-atlassian-server/introduce.gif)
 
-- **Key Features:**  
+- **Key Features:**
   - Connect AI agents to Atlassian Jira and Confluence
   - Support both Resources (read-only) and Tools (actions/mutations)
   - Easy integration with Cline through MCP Marketplace
@@ -59,12 +74,12 @@ graph TD
     AI[Cline AI Assistant] <--> MCP[MCP Atlassian Server]
     MCP <--> JiraAPI[Jira API]
     MCP <--> ConfAPI[Confluence API]
-    
+
     subgraph "MCP Server"
-        Resources[Resources - Read Only] 
+        Resources[Resources - Read Only]
         Tools[Tools - Actions]
     end
-    
+
     Resources --> JiraRes[Jira Resources<br/>issues, projects, users]
     Resources --> ConfRes[Confluence Resources<br/>spaces, pages]
     Tools --> JiraTools[Jira Tools<br/>create, update, transition]
@@ -78,6 +93,7 @@ For detailed installation and setup instructions, please refer to our [installat
 > **Note for Cline users**: The installation guide (llms-install.md) is optimized for Cline AI to understand and execute. You can simply ask Cline to "Install MCP Atlassian Server (by phuc-nt)" and it will be able to parse the instructions and help you set up everything step-by-step.
 
 The guide includes:
+
 - Prerequisites and system requirements
 - Step-by-step setup for Node.js environments
 - Configuring Cline AI assistant to connect with Atlassian
@@ -99,21 +115,26 @@ MCP Atlassian Server enables AI assistants (like Cline, Claude Desktop, Cursor..
 ### Jira
 
 - **Issue Management**
+
   - View, search, and filter issues
   - Create, update, transition, and assign issues
   - Add issues to backlog or sprint, rank issues
 
 - **Project Management**
+
   - View project list, project details, and project roles
 
 - **Board & Sprint Management**
+
   - View boards, board configuration, issues and sprints on boards
   - Create, start, and close sprints
 
 - **Filter Management**
+
   - View, create, update, and delete filters
 
 - **Dashboard & Gadget Management**
+
   - View dashboards and gadgets
   - Create and update dashboards
   - Add or remove gadgets on dashboards
@@ -124,15 +145,16 @@ MCP Atlassian Server enables AI assistants (like Cline, Claude Desktop, Cursor..
 ### Confluence
 
 - **Space Management**
+
   - View space list, space details, and pages in a space
 
 - **Page Management**
+
   - View, search, and get details of pages, child pages, ancestors, attachments, and version history
   - Create, update, rename, and delete pages
 
 - **Comment Management**
   - View, add, update, and delete comments on pages
-
 
 > For a full technical breakdown of all features, resources, and tools, see:
 > [docs/introduction/resources-and-tools.md](./docs/introduction/resources-and-tools.md)
@@ -147,14 +169,14 @@ sequenceDiagram
     participant Cline as Cline AI
     participant MCP as MCP Server
     participant Atlassian as Atlassian API
-    
+
     User->>Cline: "Find all my assigned issues"
     Cline->>MCP: Request jira://issues
     MCP->>Atlassian: API Request with Auth
     Atlassian->>MCP: JSON Response
     MCP->>Cline: Formatted MCP Resource
     Cline->>User: "I found these issues..."
-    
+
     User->>Cline: "Create new issue about login bug"
     Cline->>MCP: Call createIssue Tool
     MCP->>Atlassian: POST /rest/api/3/issue
